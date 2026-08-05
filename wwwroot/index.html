@@ -1,11 +1,252 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>社内工具管理システム</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 850px;
+        margin: 30px auto;
+        padding: 0 20px;
+        line-height: 1.6;
+      }
+      h1 {
+        color: #333;
+        border-bottom: 2px solid #007acc;
+        padding-bottom: 8px;
+      }
+      form {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        margin-bottom: 30px;
+      }
+      .form-group {
+        margin-bottom: 12px;
+      }
+      label {
+        display: inline-block;
+        width: 100px;
+        font-weight: bold;
+      }
+      input[type="text"],
+      select {
+        width: 250px;
+        padding: 6px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        background-color: #007acc;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #005999;
+      }
+      .btn-toggle {
+        background-color: #28a745;
+        margin-right: 5px;
+        width: 7rem;
+      }
+      .btn-toggle:hover {
+        background-color: #218838;
+      }
+      .btn-delete {
+        background-color: #dc3545;
+      }
+      .btn-delete:hover {
+        background-color: #c82333;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        border: 1px solid #dee2e6;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #e9ecef;
+      }
+      .status-available {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .status-unavailable {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .status-column {
+        width: 8em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>社内工具管理システム</h1>
 
-</body>
+    <!-- 新規登録フォーム -->
+    <h2>工具の新規登録</h2>
+    <form id="addToolForm">
+      <div class="form-group">
+        <label for="name">工具名:</label>
+        <input
+          type="text"
+          id="name"
+          required
+          placeholder="例: インパクトドライバー"
+        />
+      </div>
+      <div class="form-group">
+        <label for="storage">保管場所:</label>
+        <input
+          type="text"
+          id="storage"
+          required
+          placeholder="例: キャビネットA-1"
+        />
+      </div>
+      <div class="form-group">
+        <label for="isAvailable">ステータス:</label>
+        <select id="isAvailable">
+          <option value="true">利用可能</option>
+          <option value="false">貸出中 / 点検中</option>
+        </select>
+      </div>
+      <button type="submit">登録する</button>
+    </form>
+
+    <!-- 一覧表示テーブル -->
+    <h2>工具一覧</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>工具名</th>
+          <th>保管場所</th>
+          <th class="status-column">利用状況</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="toolsTableBody">
+        <!-- JSで動的に表示されます -->
+      </tbody>
+    </table>
+
+    <script>
+      // ページ読み込み時に自動で一覧を取得
+      document.addEventListener("DOMContentLoaded", fetchTools);
+
+      // --- GET: 工具一覧の取得 ---
+      async function fetchTools() {
+        try {
+          const response = await fetch("/api/tools");
+          const tools = await response.json();
+
+          const tbody = document.getElementById("toolsTableBody");
+          tbody.innerHTML = "";
+
+          tools.forEach((tool) => {
+            const tr = document.createElement("tr");
+            const statusText = tool.isAvailable
+              ? "利用可能"
+              : "貸出中 / 点検中";
+            const statusClass = tool.isAvailable
+              ? "status-available"
+              : "status-unavailable";
+            const toggleLabel = tool.isAvailable ? "貸出中に変更" : "返却処理";
+
+            tr.innerHTML = `
+                        <td>${tool.id}</td>
+                        <td>${tool.name}</td>
+                        <td>${tool.storage}</td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>
+                            <button class="btn-toggle" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.isAvailable})">${toggleLabel}</button>
+                            <button class="btn-delete" onclick="deleteTool(${tool.id})">削除</button>
+                        </td>
+                    `;
+            tbody.appendChild(tr);
+          });
+        } catch (error) {
+          console.error("データの取得に失敗しました:", error);
+        }
+      }
+
+      // --- POST: 工具の新規登録 ---
+      document
+        .getElementById("addToolForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const newTool = {
+            name: document.getElementById("name").value,
+            storage: document.getElementById("storage").value,
+            isAvailable:
+              document.getElementById("isAvailable").value === "true",
+          };
+
+          try {
+            const response = await fetch("/api/tools", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(newTool),
+            });
+
+            if (response.ok) {
+              document.getElementById("addToolForm").reset();
+              fetchTools(); // 画面を再読み込みして最新一覧を表示
+            } else {
+              alert("登録に失敗しました。");
+            }
+          } catch (error) {
+            console.error("送信エラー:", error);
+          }
+        });
+
+      // --- PUT: 利用状況の切り替え（更新） ---
+      async function toggleStatus(id, name, storage, currentStatus) {
+        const updatedTool = {
+          id: id,
+          name: name,
+          storage: storage,
+          isAvailable: !currentStatus,
+        };
+
+        const response = await fetch(`/api/tools/${id}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(updatedTool),
+        });
+        if (response.ok) {
+          fetchTools();
+        } else {
+          alert("更新に失敗しました");
+        }
+      }
+
+      // --- DELETE: 削除 ---
+      async function deleteTool(id) {
+        if (!confirm(`ID : ${id} の工具を削除しますか？`)) return;
+
+        const response = await fetch(`/api/tools/${id}`, {
+          method: "DELETE",
+        });
+        if (response.ok) {
+          fetchTools();
+        } else {
+          alert("削除に失敗しました");
+        }
+      }
+    </script>
+  </body>
 </html>
