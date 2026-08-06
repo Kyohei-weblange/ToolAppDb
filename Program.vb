@@ -62,6 +62,23 @@ Module Program
 
         ' --- POST: 工具の新規登録 ---
         app.MapPost("/api/tools", New Func(Of ToolItem, IResult)(Function(newTool As ToolItem)
+
+            '工具名が空白、Null、スペースのみの場合はエラーを返す
+            If String.IsNullOrWhiteSpace(newTool.Name) Then
+                Return Results.BadRequest("工具名は必須です")
+            ElseIf newTool.Name.Length > 50 Then
+                Return Results.BadRequest("工具名は50文字以内で入力してください")
+            End If
+
+            '保管場所が空白、Null、スペースのみの場合はエラーを返す
+            If String.IsNullOrWhiteSpace(newTool.Storage) Then
+                Return Results.BadRequest("保管場所は必須です")
+            End If
+
+            ' 保存時にNameとStorageの前後の余分な空白を削除する
+            newTool.Name = newTool.Name.Trim()
+            newTool.Storage = newTool.Storage.Trim()
+
             Using connection As New SqliteConnection(connectionString)
                 connection.Open()
                 Dim command = connection.CreateCommand()
@@ -76,11 +93,28 @@ Module Program
                 command.ExecuteNonQuery()
             End Using
 
-            Return Results.Ok()
+            Return Results.OK()
         End Function))
 
         ' --- PUT: 工具情報の更新 ---
         app.MapPut("/api/tools/{id}", New Func(Of Integer, ToolItem, IResult)(Function(id As Integer, updatedTool As ToolItem)
+
+            '工具名が空白、Null、スペースのみの場合はエラーを返す
+            If String.IsNullOrWhiteSpace(updatedTool.Name) Then
+                Return Results.BadRequest("工具名は必須です")
+            ElseIf updatedTool.Name.Length > 50 Then
+                Return Results.BadRequest("工具名は50文字以内で入力してください")
+            End If
+
+            '保管場所が空白、Null、スペースのみの場合はエラーを返す
+            If String.IsNullOrWhiteSpace(updatedTool.Storage) Then
+                Return Results.BadRequest("保管場所は必須です")
+            End If
+
+            ' 保存時にNameとStorageの前後の余分な空白を削除する
+            updatedTool.Name = updatedTool.Name.Trim()
+            updatedTool.Storage = updatedTool.Storage.Trim()
+
             Using connection As New SqliteConnection(connectionString)
                 connection.Open()
                 Dim command = connection.CreateCommand()

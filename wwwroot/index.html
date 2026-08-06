@@ -206,7 +206,8 @@
               document.getElementById("addToolForm").reset();
               fetchTools(); // 画面を再読み込みして最新一覧を表示
             } else {
-              alert("登録に失敗しました。");
+              const errorMessage = await response.text();
+              alert(`エラー: ${errorMessage}`);
             }
           } catch (error) {
             console.error("送信エラー:", error);
@@ -230,7 +231,8 @@
         if (response.ok) {
           fetchTools();
         } else {
-          alert("更新に失敗しました");
+          const errorMessage = await response.text();
+          alert(`ステータス更新に失敗しました: ${errorMessage}`);
         }
       }
 
