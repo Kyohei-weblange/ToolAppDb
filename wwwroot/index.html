@@ -34,7 +34,7 @@
       }
       input[type="text"],
       select {
-        width: 250px;
+        width: 220px;
         padding: 6px 10px;
         border: 1px solid #ccc;
         border-radius: 4px;
@@ -89,48 +89,110 @@
       .status-column {
         width: 8em;
       }
+      .btn-delete {
+        display: flex;
+        align-items: center;
+      }
+      .form-area {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .status-class {
+        display: flex;
+        align-items: center;
+      }
     </style>
   </head>
   <body>
     <h1>社内工具管理システム</h1>
 
-    <!-- 新規登録フォーム -->
-    <h2>工具の新規登録</h2>
-    <form id="addToolForm">
-      <div class="form-group">
-        <label for="name">工具名:</label>
-        <input
-          type="text"
-          id="name"
-          required
-          placeholder="例: インパクトドライバー"
-        />
+    <div class="form-area">
+      <div class="form-add">
+        <!-- 新規登録フォーム -->
+        <h2>工具の新規登録</h2>
+        <form id="addToolForm">
+          <div class="form-group">
+            <label for="name">工具名:</label>
+            <input
+              type="text"
+              id="name"
+              required
+              placeholder="例: インパクトドライバー"
+            />
+          </div>
+          <div class="form-group">
+            <label for="storage">保管場所:</label>
+            <input
+              type="text"
+              id="storage"
+              required
+              placeholder="例: キャビネットA-1"
+            />
+          </div>
+          <div class="form-group">
+            <label for="isAvailable">ステータス:</label>
+            <select id="isAvailable">
+              <option value="true">利用可能</option>
+              <option value="false">貸出中 / 点検中</option>
+            </select>
+          </div>
+          <button type="submit">登録する</button>
+        </form>
       </div>
-      <div class="form-group">
-        <label for="storage">保管場所:</label>
-        <input
-          type="text"
-          id="storage"
-          required
-          placeholder="例: キャビネットA-1"
-        />
+      <div class="form-search">
+        <!-- 検索エリア（追加） -->
+        <h2>工具の検索</h2>
+        <div
+          style="
+            background: #eef6fc;
+            padding: 20px;
+            border-radius: 8px;
+            /* margin-bottom: 20px; */
+          "
+        >
+          <div class="form-group">
+            <label for="searchName">工具名:</label>
+            <input
+              type="text"
+              id="searchName"
+              placeholder="検索したいキーワード"
+            />
+          </div>
+          <div class="form-group">
+            <label for="searchStorage">保管場所：</label>
+            <input
+              type="text"
+              id="searchStorage"
+              placeholder="検索したい保管場所"
+            />
+          </div>
+          <div class="form-group">
+            <label for="searchStatus">ステータス:</label>
+            <select id="searchStatus">
+              <option value="">すべて表示</option>
+              <option value="true">利用可能</option>
+              <option value="false">貸出中 / 点検中</option>
+            </select>
+          </div>
+          <button type="button" onclick="fetchTools()">検索する</button>
+          <button
+            type="button"
+            onclick="clearSearch()"
+            style="background-color: #6c757d"
+          >
+            クリア
+          </button>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="isAvailable">ステータス:</label>
-        <select id="isAvailable">
-          <option value="true">利用可能</option>
-          <option value="false">貸出中 / 点検中</option>
-        </select>
-      </div>
-      <button type="submit">登録する</button>
-    </form>
+    </div>
 
     <!-- 一覧表示テーブル -->
     <h2>工具一覧</h2>
     <table>
       <thead>
         <tr>
-          <th>ID</th>
+          <!-- <th>ID</th> -->
           <th>工具名</th>
           <th>保管場所</th>
           <th class="status-column">利用状況</th>
@@ -146,10 +208,36 @@
       // ページ読み込み時に自動で一覧を取得
       document.addEventListener("DOMContentLoaded", fetchTools);
 
-      // --- GET: 工具一覧の取得 ---
+      // --- GET: 工具一覧の取得（検索対応） ---
       async function fetchTools() {
+        // 要素が存在する場合のみ値を取得（Nullガード）
+        const searchNameInput = document.getElementById("searchName");
+        const searchStatusInput = document.getElementById("searchStatus");
+        const searchStorageInput = document.getElementById("searchStorage");
+
+        const searchName = searchNameInput ? searchNameInput.value : "";
+        const searchStatus = searchStatusInput ? searchStatusInput.value : "";
+        const searchStorage = searchStorageInput
+          ? searchStorageInput.value
+          : "";
+
+        // クエリパラメーターの組み立て
+        const params = new URLSearchParams();
+        if (searchName) {
+          params.append("name", searchName);
+        }
+        if (searchStatus) {
+          params.append("isAvailable", searchStatus);
+        }
+        if (searchStorage) {
+          params.append("storage", searchStorage);
+        }
+
+        const queryString = params.toString();
+        const url = queryString ? `/api/tools?${queryString}` : "/api/tools";
+
         try {
-          const response = await fetch("/api/tools");
+          const response = await fetch(url);
           const tools = await response.json();
 
           const tbody = document.getElementById("toolsTableBody");
@@ -166,20 +254,28 @@
             const toggleLabel = tool.isAvailable ? "貸出中に変更" : "返却処理";
 
             tr.innerHTML = `
-                        <td>${tool.id}</td>
-                        <td>${tool.name}</td>
-                        <td>${tool.storage}</td>
-                        <td class="${statusClass}">${statusText}</td>
-                        <td>
-                            <button class="btn-toggle" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.isAvailable})">${toggleLabel}</button>
-                            <button class="btn-delete" onclick="deleteTool(${tool.id})">削除</button>
-                        </td>
-                    `;
+                      <!-- <td>${tool.id}</td> -->
+                      <td>${tool.name}</td>
+                      <td>${tool.storage}</td>
+                      <td class="${statusClass}">${statusText}</td>
+                      <td class="status-class">
+                          <button class="btn-toggle" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.isAvailable})">${toggleLabel}</button>
+                          <button class="btn-delete" onclick="deleteTool(${tool.id})">削除</button>
+                      </td>
+                  `;
             tbody.appendChild(tr);
           });
         } catch (error) {
           console.error("データの取得に失敗しました:", error);
         }
+      }
+
+      // 検索条件をリクリアする関数（追加）
+      function clearSearch() {
+        document.getElementById("searchName").value = "";
+        document.getElementById("searchStatus").value = "";
+        document.getElementById("searchStorage").value = "";
+        fetchTools();
       }
 
       // --- POST: 工具の新規登録 ---

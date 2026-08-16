@@ -36,28 +36,52 @@ Module Program
         '     command.ExecuteNonQuery()
         ' End Using
 
-        ' --- GET: 工具一覧の取得 ---
-        app.MapGet("/api/tools", New Func(Of IResult)(Function()
-            Dim result As New List(Of ToolItem)()
+        ' --- GET: 工具一覧の取得（検索・絞り込み対応） ---
+        app.MapGet("/api/tools", New Func(Of String, String, String, IResult)(Function(name As String, isAvailable As String, storage As String)
+            Dim tools As New List(Of ToolItem)()
 
             Using connection As New SqliteConnection(connectionString)
                 connection.Open()
                 Dim command = connection.CreateCommand()
-                command.CommandText = "SELECT Id, Name, Storage, IsAvailable FROM Tools"
+
+                ' 条件を動的に追加しやすくするためのベースSQL（WHERE 1=1 は常に真となる定番の手法）
+                Dim sql As String = "SELECT Id, Name, Storage, IsAvailable FROM Tools WHERE 1=1"
+
+                ' 1. 工具名（Name）の部分一致検索（検索文字が渡された場合のみ）
+                If Not String.IsNullOrWhiteSpace(name) Then
+                    sql &= " AND Name LIKE @Name"
+                    ' %文字% にすることで「部分一致（あいまい検索）」になります
+                    command.Parameters.AddWithValue("@Name", "%" & name.Trim() & "%")
+                End If
+
+                ' 2. 利用状況（isAvailable）の絞り込み（"true" または "false" が渡された場合）
+                If Not String.IsNullOrWhiteSpace(isAvailable) Then
+                    sql &= " AND IsAvailable = @IsAvailable"
+                    Dim isAvailBool As Boolean = (isAvailable.ToLower() = "true")
+                    command.Parameters.AddWithValue("@IsAvailable", If(isAvailBool, 1, 0))
+                End If
+
+                ' 3.保管場所（Storage）の部分一致検索（検索文字が渡された場合のみ）
+                If Not String.IsNullOrWhiteSpace(storage) Then
+                    sql &= " AND Storage LIKE @Storage"
+                    command.Parameters.AddWithValue("@Storage", "%" & storage.Trim() & "%")
+                End IF
+
+                command.CommandText = sql
 
                 Using reader = command.ExecuteReader()
                     While reader.Read()
-                        result.Add(New ToolItem With {
+                        tools.Add(New ToolItem With {
                             .Id = reader.GetInt32(0),
                             .Name = reader.GetString(1),
                             .Storage = reader.GetString(2),
-                            .IsAvailable = If(reader.GetInt32(3) = 1, True, False)
+                            .IsAvailable = (reader.GetInt32(3) = 1)
                         })
                     End While
                 End Using
             End Using
 
-            Return Results.Ok(result)
+            Return Results.Ok(tools)
         End Function))
 
         ' --- POST: 工具の新規登録 ---
