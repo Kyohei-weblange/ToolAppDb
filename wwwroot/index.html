@@ -122,6 +122,12 @@
             />
           </div>
           <div class="form-group">
+            <label for="categoryId">カテゴリ:</label>
+            <select id="categoryId" required>
+              <!-- JSで動的に<option>を追加 -->
+            </select>
+          </div>
+          <div class="form-group">
             <label for="storage">保管場所:</label>
             <input
               type="text"
@@ -140,17 +146,11 @@
           <button type="submit">登録する</button>
         </form>
       </div>
+
       <div class="form-search">
-        <!-- 検索エリア（追加） -->
+        <!-- 検索エリア -->
         <h2>工具の検索</h2>
-        <div
-          style="
-            background: #eef6fc;
-            padding: 20px;
-            border-radius: 8px;
-            /* margin-bottom: 20px; */
-          "
-        >
+        <div style="background: #eef6fc; padding: 20px; border-radius: 8px">
           <div class="form-group">
             <label for="searchName">工具名:</label>
             <input
@@ -158,6 +158,13 @@
               id="searchName"
               placeholder="検索したいキーワード"
             />
+          </div>
+          <div class="form-group">
+            <label for="searchCategory">カテゴリ:</label>
+            <select id="searchCategory">
+              <option value="">すべて表示</option>
+              <!-- JSで動的に<option>を追加 -->
+            </select>
           </div>
           <div class="form-group">
             <label for="searchStorage">保管場所：</label>
@@ -192,46 +199,66 @@
     <table>
       <thead>
         <tr>
-          <!-- <th>ID</th> -->
           <th>工具名</th>
+          <th>カテゴリ</th>
           <th>保管場所</th>
           <th class="status-column">利用状況</th>
           <th>操作</th>
         </tr>
       </thead>
       <tbody id="toolsTableBody">
-        <!-- JSで動的に表示されます -->
+        <!-- JSで動的に表示 -->
       </tbody>
     </table>
 
     <script>
-      // ページ読み込み時に自動で一覧を取得
-      document.addEventListener("DOMContentLoaded", fetchTools);
+      document.addEventListener("DOMContentLoaded", () => {
+        fetchCategories();
+        fetchTools();
+      });
 
-      // --- GET: 工具一覧の取得（検索対応） ---
+      // カテゴリ一覧を取得して登録用・検索用の両ドロップダウンに反映
+      async function fetchCategories() {
+        try {
+          const response = await fetch("/api/categories");
+          const categories = await response.json();
+
+          const addSelect = document.getElementById("categoryId");
+          const searchSelect = document.getElementById("searchCategory");
+
+          addSelect.innerHTML = "";
+          searchSelect.innerHTML = '<option value="">すべて表示</option>';
+
+          categories.forEach((cat) => {
+            // 登録用
+            const optAdd = document.createElement("option");
+            optAdd.value = cat.id;
+            optAdd.textContent = cat.name;
+            addSelect.appendChild(optAdd);
+
+            // 検索用
+            const optSearch = document.createElement("option");
+            optSearch.value = cat.id;
+            optSearch.textContent = cat.name;
+            searchSelect.appendChild(optSearch);
+          });
+        } catch (error) {
+          console.error("カテゴリ一覧の取得に失敗しました:", error);
+        }
+      }
+
+      // 工具一覧の取得（検索条件付き）
       async function fetchTools() {
-        // 要素が存在する場合のみ値を取得（Nullガード）
-        const searchNameInput = document.getElementById("searchName");
-        const searchStatusInput = document.getElementById("searchStatus");
-        const searchStorageInput = document.getElementById("searchStorage");
+        const searchName = document.getElementById("searchName").value;
+        const searchCategory = document.getElementById("searchCategory").value;
+        const searchStorage = document.getElementById("searchStorage").value;
+        const searchStatus = document.getElementById("searchStatus").value;
 
-        const searchName = searchNameInput ? searchNameInput.value : "";
-        const searchStatus = searchStatusInput ? searchStatusInput.value : "";
-        const searchStorage = searchStorageInput
-          ? searchStorageInput.value
-          : "";
-
-        // クエリパラメーターの組み立て
         const params = new URLSearchParams();
-        if (searchName) {
-          params.append("name", searchName);
-        }
-        if (searchStatus) {
-          params.append("isAvailable", searchStatus);
-        }
-        if (searchStorage) {
-          params.append("storage", searchStorage);
-        }
+        if (searchName) params.append("name", searchName);
+        if (searchCategory) params.append("categoryId", searchCategory);
+        if (searchStorage) params.append("storage", searchStorage);
+        if (searchStatus) params.append("isAvailable", searchStatus);
 
         const queryString = params.toString();
         const url = queryString ? `/api/tools?${queryString}` : "/api/tools";
@@ -254,15 +281,15 @@
             const toggleLabel = tool.isAvailable ? "貸出中に変更" : "返却処理";
 
             tr.innerHTML = `
-                      <!-- <td>${tool.id}</td> -->
-                      <td>${tool.name}</td>
-                      <td>${tool.storage}</td>
-                      <td class="${statusClass}">${statusText}</td>
-                      <td class="status-class">
-                          <button class="btn-toggle" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.isAvailable})">${toggleLabel}</button>
-                          <button class="btn-delete" onclick="deleteTool(${tool.id})">削除</button>
-                      </td>
-                  `;
+              <td>${tool.name}</td>
+              <td>${tool.categoryName || "未分類"}</td>
+              <td>${tool.storage}</td>
+              <td class="${statusClass}">${statusText}</td>
+              <td class="status-class">
+                  <button class="btn-toggle" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.isAvailable}, ${tool.categoryId})">${toggleLabel}</button>
+                  <button class="btn-delete" onclick="deleteTool(${tool.id})">削除</button>
+              </td>
+            `;
             tbody.appendChild(tr);
           });
         } catch (error) {
@@ -270,15 +297,15 @@
         }
       }
 
-      // 検索条件をリクリアする関数（追加）
       function clearSearch() {
         document.getElementById("searchName").value = "";
-        document.getElementById("searchStatus").value = "";
+        document.getElementById("searchCategory").value = "";
         document.getElementById("searchStorage").value = "";
+        document.getElementById("searchStatus").value = "";
         fetchTools();
       }
 
-      // --- POST: 工具の新規登録 ---
+      // 新規登録
       document
         .getElementById("addToolForm")
         .addEventListener("submit", async (e) => {
@@ -286,6 +313,10 @@
 
           const newTool = {
             name: document.getElementById("name").value,
+            categoryId: parseInt(
+              document.getElementById("categoryId").value,
+              10,
+            ),
             storage: document.getElementById("storage").value,
             isAvailable:
               document.getElementById("isAvailable").value === "true",
@@ -300,7 +331,7 @@
 
             if (response.ok) {
               document.getElementById("addToolForm").reset();
-              fetchTools(); // 画面を再読み込みして最新一覧を表示
+              fetchTools();
             } else {
               const errorMessage = await response.text();
               alert(`エラー: ${errorMessage}`);
@@ -310,13 +341,20 @@
           }
         });
 
-      // --- PUT: 利用状況の切り替え（更新） ---
-      async function toggleStatus(id, name, storage, currentStatus) {
+      // 更新
+      async function toggleStatus(
+        id,
+        name,
+        storage,
+        currentStatus,
+        categoryId,
+      ) {
         const updatedTool = {
           id: id,
           name: name,
           storage: storage,
           isAvailable: !currentStatus,
+          categoryId: categoryId,
         };
 
         const response = await fetch(`/api/tools/${id}`, {
@@ -332,7 +370,7 @@
         }
       }
 
-      // --- DELETE: 削除 ---
+      // 削除
       async function deleteTool(id) {
         if (!confirm(`ID : ${id} の工具を削除しますか？`)) return;
 

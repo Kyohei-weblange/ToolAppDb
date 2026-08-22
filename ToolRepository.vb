@@ -18,33 +18,58 @@ Public Class ToolRepository
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
                     Name TEXT NOT NULL,
                     Storage TEXT NOT NULL,
-                    IsAvailable INTEGER NOT NULL
+                    IsAvailable INTEGER NOT NULL,
+                    CategoryId INTEGER NOT NULL DEFAULT 1
                 );
-            "
+                CREATE TABLE IF NOT EXISTS Categories (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL
+                );
+                INSERT OR IGNORE INTO Categories (Id, Name) VALUES
+                    (1, '電動工具'),
+                    (2, '作業工具'),
+                    (3, '測定工具');
+                "
             command.ExecuteNonQuery()
         End Using
     End Sub
 
     ' 一覧取得（検索条件付き）
-    Public Function GetAll(name As String, isAvailable As String, storage As String) As List(Of ToolItem)
+    Public Function GetAll(name As String, isAvailable As String, storage As String, categoryId As String) As List(Of ToolItem)
         Dim tools As New List(Of ToolItem)()
         Using connection As New SqliteConnection(_connectionString)
             connection.Open()
             Dim command = connection.CreateCommand()
-            Dim sql As String = "SELECT Id, Name, Storage, IsAvailable FROM Tools WHERE 1=1"
+            Dim sql As String = "
+                SELECT
+                    T.Id,
+                    T.Name,
+                    T.Storage,
+                    T.IsAvailable,
+                    T.CategoryId,
+                    COALESCE(C.Name, '未分類') AS CategoryName
+                FROM Tools T
+                LEFT JOIN Categories C ON T.CategoryId = C.Id
+                WHERE 1=1
+            "
 
             If Not String.IsNullOrWhiteSpace(name) Then
-                sql &= " AND Name LIKE @Name"
+                sql &= " AND T.Name LIKE @Name"
                 command.Parameters.AddWithValue("@Name", "%" & name.Trim() & "%")
             End If
             If Not String.IsNullOrWhiteSpace(isAvailable) Then
-                sql &= " AND IsAvailable = @IsAvailable"
+                sql &= " AND T.IsAvailable = @IsAvailable"
                 Dim isAvailBool As Boolean = (isAvailable.ToLower() = "true")
                 command.Parameters.AddWithValue("@IsAvailable", If(isAvailBool, 1, 0))
             End If
             If Not String.IsNullOrWhiteSpace(storage) Then
-                sql &= " AND Storage LIKE @Storage"
+                sql &= " AND T.Storage LIKE @Storage"
                 command.Parameters.AddWithValue("@Storage", "%" & storage.Trim() & "%")
+            End If
+            Dim parsedCategoryId As Integer
+            If Not String.IsNullOrWhiteSpace(categoryId) AndAlso Integer.TryParse(categoryId, parsedCategoryId) Then
+                sql &= " AND T.CategoryId = @CategoryId"
+                command.Parameters.AddWithValue("@CategoryId", parsedCategoryId)
             End If
 
             command.CommandText = sql
@@ -54,7 +79,9 @@ Public Class ToolRepository
                         .Id = reader.GetInt32(0),
                         .Name = reader.GetString(1),
                         .Storage = reader.GetString(2),
-                        .IsAvailable = (reader.GetInt32(3) = 1)
+                        .IsAvailable = (reader.GetInt32(3) = 1),
+                        .CategoryId = reader.GetInt32(4),
+                        .CategoryName = reader.GetString(5)
                     })
                 End While
             End Using
@@ -62,35 +89,60 @@ Public Class ToolRepository
         Return tools
     End Function
 
-    ' 新規追加
+    ' カテゴリ一覧の取得
+    Public Function GetCategories() As List(Of CategoryItem)
+        Dim categories As New List(Of CategoryItem)()
+        Using connection As New SqliteConnection(_connectionString)
+            connection.Open()
+            Dim command = connection.CreateCommand()
+            command.CommandText = "SELECT Id, Name FROM Categories ORDER BY Id"
+
+            Using reader = command.ExecuteReader()
+                While reader.Read()
+                    categories.Add(New CategoryItem With {
+                        .Id = reader.GetInt32(0),
+                        .Name = reader.GetString(1)
+                    })
+                End While
+            End Using
+        End Using
+        Return categories
+    End Function
+
+    ' 新規追加（CategoryId対応）
     Public Sub Add(newTool As ToolItem)
         Using connection As New SqliteConnection(_connectionString)
             connection.Open()
             Dim command = connection.CreateCommand()
             command.CommandText = "
-                INSERT INTO Tools (Name, Storage, IsAvailable)
-                VALUES (@Name, @Storage, @IsAvailable)
+                INSERT INTO Tools (Name, Storage, IsAvailable,CategoryId)
+                VALUES (@Name, @Storage, @IsAvailable, @CategoryId)
             "
             command.Parameters.AddWithValue("@Name", newTool.Name)
             command.Parameters.AddWithValue("@Storage", newTool.Storage)
             command.Parameters.AddWithValue("@IsAvailable", If(newTool.IsAvailable, 1, 0))
+            ' CategoryIdが未指定（0など）の場合は初期値1を設定
+            Dim catId As Integer = If(newTool.CategoryId <= 0, 1, newTool.CategoryId)
+            command.Parameters.AddWithValue("@CategoryId", catId)
             command.ExecuteNonQuery()
         End Using
     End Sub
 
-    ' --- Update: Boolean を返す ---
+    ' --- Update: CategoryId対応 ---
     Public Function Update(id As Integer, updatedTool As ToolItem) As Boolean
         Using connection As New SqliteConnection(_connectionString)
             connection.Open()
             Dim command = connection.CreateCommand()
             command.CommandText = "
                 UPDATE Tools
-                SET Name = @Name, Storage = @Storage, IsAvailable = @IsAvailable
+                SET Name = @Name, Storage = @Storage, IsAvailable = @IsAvailable, CategoryId = @CategoryId
                 WHERE Id = @Id
             "
             command.Parameters.AddWithValue("@Name", updatedTool.Name)
             command.Parameters.AddWithValue("@Storage", updatedTool.Storage)
             command.Parameters.AddWithValue("@IsAvailable", If(updatedTool.IsAvailable, 1, 0))
+            Dim catId As Integer = If(updatedTool.CategoryId <= 0, 1, updatedTool.CategoryId)
+            command.Parameters.AddWithValue("@CategoryId", catId)
             command.Parameters.AddWithValue("@Id", id)
 
             Dim rowsAffected As Integer = command.ExecuteNonQuery()
