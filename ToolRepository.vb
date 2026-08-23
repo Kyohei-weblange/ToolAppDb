@@ -1,4 +1,3 @@
-' ToolRepository.vb
 Imports Microsoft.Data.Sqlite
 
 Public Class ToolRepository
@@ -35,10 +34,10 @@ Public Class ToolRepository
     End Sub
 
     ' 一覧取得（検索条件付き）
-    Public Function GetAll(name As String, isAvailable As String, storage As String, categoryId As String) As List(Of ToolItem)
+    Public Async Function GetAllAsync(name As String, isAvailable As String, storage As String, categoryId As String) As Task(Of List(Of ToolItem))
         Dim tools As New List(Of ToolItem)()
         Using connection As New SqliteConnection(_connectionString)
-            connection.Open()
+            Await connection.OpenAsync()
             Dim command = connection.CreateCommand()
             Dim sql As String = "
                 SELECT
@@ -73,8 +72,8 @@ Public Class ToolRepository
             End If
 
             command.CommandText = sql
-            Using reader = command.ExecuteReader()
-                While reader.Read()
+            Using reader = Await command.ExecuteReaderAsync()
+                While Await reader.ReadAsync()
                     tools.Add(New ToolItem With {
                         .Id = reader.GetInt32(0),
                         .Name = reader.GetString(1),
@@ -90,15 +89,15 @@ Public Class ToolRepository
     End Function
 
     ' カテゴリ一覧の取得
-    Public Function GetCategories() As List(Of CategoryItem)
+    Public Async Function GetCategoriesAsync() As Task(Of List(Of CategoryItem))
         Dim categories As New List(Of CategoryItem)()
         Using connection As New SqliteConnection(_connectionString)
-            connection.Open()
+            Await connection.OpenAsync()
             Dim command = connection.CreateCommand()
             command.CommandText = "SELECT Id, Name FROM Categories ORDER BY Id"
 
-            Using reader = command.ExecuteReader()
-                While reader.Read()
+            Using reader = Await command.ExecuteReaderAsync()
+                While Await reader.ReadAsync()
                     categories.Add(New CategoryItem With {
                         .Id = reader.GetInt32(0),
                         .Name = reader.GetString(1)
@@ -110,9 +109,9 @@ Public Class ToolRepository
     End Function
 
     ' 新規追加（CategoryId対応）
-    Public Sub Add(newTool As ToolItem)
+    Public Async Function AddAsync(newTool As ToolItem) As Task
         Using connection As New SqliteConnection(_connectionString)
-            connection.Open()
+            Await connection.OpenAsync()
             Dim command = connection.CreateCommand()
             command.CommandText = "
                 INSERT INTO Tools (Name, Storage, IsAvailable,CategoryId)
@@ -124,14 +123,14 @@ Public Class ToolRepository
             ' CategoryIdが未指定（0など）の場合は初期値1を設定
             Dim catId As Integer = If(newTool.CategoryId <= 0, 1, newTool.CategoryId)
             command.Parameters.AddWithValue("@CategoryId", catId)
-            command.ExecuteNonQuery()
+            Await command.ExecuteNonQueryAsync()
         End Using
-    End Sub
+    End Function
 
     ' --- Update: CategoryId対応 ---
-    Public Function Update(id As Integer, updatedTool As ToolItem) As Boolean
+    Public Async Function UpdateAsync(id As Integer, updatedTool As ToolItem) As Task(Of Boolean)
         Using connection As New SqliteConnection(_connectionString)
-            connection.Open()
+            Await connection.OpenAsync()
             Dim command = connection.CreateCommand()
             command.CommandText = "
                 UPDATE Tools
@@ -145,30 +144,31 @@ Public Class ToolRepository
             command.Parameters.AddWithValue("@CategoryId", catId)
             command.Parameters.AddWithValue("@Id", id)
 
-            Dim rowsAffected As Integer = command.ExecuteNonQuery()
+            Dim rowsAffected As Integer = Await command.ExecuteNonQueryAsync()
             Return rowsAffected > 0
         End Using
     End Function
 
     ' --- Delete: Boolean を返す ---
-    Public Function Delete(id As Integer) As Boolean
+    Public Async Function DeleteAsync(id As Integer) As Task(Of Boolean)
         Using connection As New SqliteConnection(_connectionString)
-            connection.Open()
+            Await connection.OpenAsync()
             Dim command = connection.CreateCommand()
             command.CommandText = "DELETE FROM Tools WHERE Id = @Id"
             command.Parameters.AddWithValue("@Id", id)
 
-            Dim rowsAffected As Integer = command.ExecuteNonQuery()
+            Dim rowsAffected As Integer = Await command.ExecuteNonQueryAsync()
             Return rowsAffected > 0
         End Using
     End Function
 
     ' トランザクションを使った安全なカテゴリ削除
-    Public Function DeleteCategorySafety(categoryId As Integer) As Boolean
+    Public Async Function DeleteCategorySafetyAsync(categoryId As Integer) As Task(Of Boolean)
         ' デフォルトカテゴリ（ID：1）は削除不可
         If categoryId = 1 Then Return False
         Using connection As New SqliteConnection(_connectionString)
-            connection.Open()
+            ' 非同期でDB接続を開く
+            Await connection.OpenAsync()
             ' トランザクション開始
             Using transaction = connection.BeginTransaction()
                 Try
@@ -177,13 +177,15 @@ Public Class ToolRepository
                     updateCmd.Transaction = transaction
                     updateCmd.CommandText = "UPDATE Tools SET CategoryId = 1 WHERE CategoryId = @CategoryId"
                     updateCmd.Parameters.AddWithValue("@CategoryId", categoryId)
-                    updateCmd.ExecuteNonQuery()
+                    ' 非同期実行
+                    Await updateCmd.ExecuteNonQueryAsync()
                     ' 処理2：Categoriesテーブルから該当カテゴリを削除
                     Dim deleteCmd = connection.CreateCommand()
                     deleteCmd.Transaction = transaction
                     deleteCmd.CommandText = "DELETE FROM Categories WHERE Id = @Id"
                     deleteCmd.Parameters.AddWithValue("@Id", categoryId)
-                    Dim rowsAffected As Integer = deleteCmd.ExecuteNonQuery()
+                    ' 非同期実行
+                    Dim rowsAffected As Integer = Await deleteCmd.ExecuteNonQueryAsync()
                     ' コミット（確定）
                     transaction.Commit()
                     Return rowsAffected > 0
