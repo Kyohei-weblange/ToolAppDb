@@ -162,4 +162,37 @@ Public Class ToolRepository
             Return rowsAffected > 0
         End Using
     End Function
+
+    ' トランザクションを使った安全なカテゴリ削除
+    Public Function DeleteCategorySafety(categoryId As Integer) As Boolean
+        ' デフォルトカテゴリ（ID：1）は削除不可
+        If categoryId = 1 Then Return False
+        Using connection As New SqliteConnection(_connectionString)
+            connection.Open()
+            ' トランザクション開始
+            Using transaction = connection.BeginTransaction()
+                Try
+                    ' 処理1：削除対象カテゴリの工具を初期カテゴリ（ID:1）へ付け替え
+                    Dim updateCmd = connection.CreateCommand()
+                    updateCmd.Transaction = transaction
+                    updateCmd.CommandText = "UPDATE Tools SET CategoryId = 1 WHERE CategoryId = @CategoryId"
+                    updateCmd.Parameters.AddWithValue("@CategoryId", categoryId)
+                    updateCmd.ExecuteNonQuery()
+                    ' 処理2：Categoriesテーブルから該当カテゴリを削除
+                    Dim deleteCmd = connection.CreateCommand()
+                    deleteCmd.Transaction = transaction
+                    deleteCmd.CommandText = "DELETE FROM Categories WHERE Id = @Id"
+                    deleteCmd.Parameters.AddWithValue("@Id", categoryId)
+                    Dim rowsAffected As Integer = deleteCmd.ExecuteNonQuery()
+                    ' コミット（確定）
+                    transaction.Commit()
+                    Return rowsAffected > 0
+                Catch ex As Exception
+                    ' ロールバック（キャンセル）
+                    transaction.Rollback()
+                    Throw
+                End Try
+            End Using
+        End Using
+    End Function
 End Class

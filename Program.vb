@@ -112,6 +112,20 @@ Module Program
         End Function
         ))
 
+        ' DELETE：カテゴリの安全削除（トランザクション実行）
+        app.MapDelete("/api/categories/{id:int}", New Func(Of Integer, IResult)(Function(id As Integer)
+            If id = 1 Then
+                Return Results.BadRequest("初期カテゴリ（ID:1）は削除できません。")
+            End If
+
+            Dim success = repository.DeleteCategorySafety(id)
+            If success Then
+                Return Results.Ok()
+            Else
+                Return Results.NotFound($"指定されたカテゴリID: {id} は見つかりませんでした。")
+            End If
+        End Function))
+
         app.Run()
     End Sub
 End Module
