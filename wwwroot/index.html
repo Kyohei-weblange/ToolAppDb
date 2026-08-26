@@ -102,10 +102,58 @@
         display: flex;
         align-items: center;
       }
+      /* カテゴリ管理用に追加したスタイル */
+      .category-management {
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        padding: 15px 20px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+      }
+      .category-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .category-badge {
+        background: #ffffff;
+        border: 1px solid #ccc;
+        padding: 5px 10px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9em;
+      }
+      .btn-cat-delete {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        line-height: 18px;
+        text-align: center;
+        font-weight: bold;
+        padding: 0;
+        cursor: pointer;
+      }
+      .btn-cat-delete:hover {
+        background-color: #bd2130;
+      }
     </style>
   </head>
   <body>
     <h1>社内工具管理システム</h1>
+
+    <!-- カテゴリ管理（一覧＆削除）表示エリア -->
+    <div class="category-management">
+      <h3 style="margin-top: 0; margin-bottom: 10px">登録済みカテゴリ一覧</h3>
+      <div id="categoryBadgeList" class="category-list">
+        <!-- JSで動的にカテゴリと削除ボタンを表示 -->
+      </div>
+    </div>
 
     <div class="form-area">
       <div class="form-add">
@@ -217,33 +265,59 @@
         fetchTools();
       });
 
-      // カテゴリ一覧を取得して登録用・検索用の両ドロップダウンに反映
+      // カテゴリ一覧を取得して「ドロップダウン」および「カテゴリ管理一覧」に反映
       async function fetchCategories() {
         try {
           const response = await fetch("/api/categories");
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
           const categories = await response.json();
 
           const addSelect = document.getElementById("categoryId");
           const searchSelect = document.getElementById("searchCategory");
+          const categoryBadgeList =
+            document.getElementById("categoryBadgeList");
 
-          addSelect.innerHTML = "";
-          searchSelect.innerHTML = '<option value="">すべて表示</option>';
+          // 要素が存在する場合のみ初期化
+          if (addSelect) addSelect.innerHTML = "";
+          if (searchSelect)
+            searchSelect.innerHTML = '<option value="">すべて表示</option>';
+          if (categoryBadgeList) categoryBadgeList.innerHTML = "";
 
           categories.forEach((cat) => {
-            // 登録用
-            const optAdd = document.createElement("option");
-            optAdd.value = cat.id;
-            optAdd.textContent = cat.name;
-            addSelect.appendChild(optAdd);
+            // 1. 登録用ドロップダウンへの追加
+            if (addSelect) {
+              const optAdd = document.createElement("option");
+              optAdd.value = cat.id;
+              optAdd.textContent = cat.name;
+              addSelect.appendChild(optAdd);
+            }
 
-            // 検索用
-            const optSearch = document.createElement("option");
-            optSearch.value = cat.id;
-            optSearch.textContent = cat.name;
-            searchSelect.appendChild(optSearch);
+            // 2. 検索用ドロップダウンへの追加
+            if (searchSelect) {
+              const optSearch = document.createElement("option");
+              optSearch.value = cat.id;
+              optSearch.textContent = cat.name;
+              searchSelect.appendChild(optSearch);
+            }
+
+            // 3. カテゴリ一覧表示エリアへのバッジ追加
+            if (categoryBadgeList) {
+              const badge = document.createElement("div");
+              badge.className = "category-badge";
+
+              const deleteBtn =
+                cat.id !== 1
+                  ? `<button class="btn-cat-delete" title="削除" onclick="deleteCategory(${cat.id}, '${cat.name}')">×</button>`
+                  : `<span style="font-size:0.8em; color:#888;">(初期)</span>`;
+
+              badge.innerHTML = `<span>${cat.name}</span> ${deleteBtn}`;
+              categoryBadgeList.appendChild(badge);
+            }
           });
         } catch (error) {
-          console.error("カテゴリ一覧の取得に失敗しました:", error);
+          console.error("カテゴリ一覧の取得処理でエラーが発生しました:", error);
         }
       }
 
@@ -381,6 +455,40 @@
           fetchTools();
         } else {
           alert("削除に失敗しました");
+        }
+      }
+
+      // --- カテゴリの安全削除処理 ---
+      async function deleteCategory(categoryId, categoryName) {
+        if (categoryId === 1) {
+          alert("初期カテゴリ（ID: 1）は削除できません。");
+          return;
+        }
+
+        const isConfirmed = confirm(
+          `カテゴリ「${categoryName}」を削除しますか？\n` +
+            `※このカテゴリに属する工具は自動的に「初期カテゴリ」へ移動します。`,
+        );
+
+        if (!isConfirmed) return;
+
+        try {
+          const response = await fetch(`/api/categories/${categoryId}`, {
+            method: "DELETE",
+          });
+
+          if (response.ok) {
+            alert("カテゴリを削除しました。");
+            // 削除成功後、カテゴリ一覧と工具一覧の両方を最新に更新
+            fetchCategories();
+            fetchTools();
+          } else {
+            const errorText = await response.text();
+            alert(`削除に失敗しました: ${errorText}`);
+          }
+        } catch (error) {
+          console.error("エラーが発生しました:", error);
+          alert("通信エラーが発生しました。");
         }
       }
     </script>
