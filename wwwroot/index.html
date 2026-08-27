@@ -3,261 +3,408 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>社内工具管理システム</title>
+    <title>工具管理システム</title>
     <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
       body {
-        font-family: sans-serif;
-        max-width: 850px;
-        margin: 30px auto;
-        padding: 0 20px;
-        line-height: 1.6;
+        height: 100vh;
+        margin: 0;
+        padding: 20px;
+        background-color: #f0f2f5;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden; /* 画面全体のスクロールを無効化 */
+        display: flex;
+        flex-direction: column;
       }
-      h1 {
+
+      h1,
+      h2,
+      h3 {
         color: #333;
-        border-bottom: 2px solid #007acc;
-        padding-bottom: 8px;
+        margin-top: 0;
       }
-      form {
-        background: #f8f9fa;
+
+      .header-area {
+        max-width: 1400px;
+        width: 100%;
+        margin: 0 auto 15px auto;
+        flex-shrink: 0;
+      }
+      .header-area h1 {
+        margin: 0;
+      }
+
+      /* 左右2カラムのグリッドレイアウト（高さ画面固定） */
+      .container {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 20px;
+        max-width: 1400px;
+        width: 100%;
+        margin: 0 auto;
+        flex: 1; /* 残りの高さを一杯に使う */
+        min-height: 0; /* Grid/Flex子要素のスクロールに必須 */
+      }
+
+      /* 左側カラム設定 */
+      .left-column {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        min-height: 0;
+        overflow-y: auto; /* 左側が入り切らない場合のみ内部スクロール */
+        padding-right: 4px;
+      }
+
+      /* 右側カラム設定 */
+      .right-column {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .card {
+        background: #fff;
         padding: 20px;
         border-radius: 8px;
-        border: 1px solid #e9ecef;
-        margin-bottom: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       }
+
+      .right-column .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      /* フォーム用スタイル */
       .form-group {
-        margin-bottom: 12px;
+        margin-bottom: 15px;
       }
       label {
-        display: inline-block;
-        width: 100px;
+        display: block;
+        margin-bottom: 5px;
         font-weight: bold;
+        font-size: 0.9em;
+        color: #555;
       }
       input[type="text"],
       select {
-        width: 220px;
-        padding: 6px 10px;
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
         border: 1px solid #ccc;
         border-radius: 4px;
+        font-size: 1em;
       }
+      .flex-group {
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+      }
+      .flex-group input[type="text"] {
+        flex-grow: 1;
+      }
+
       button {
-        background-color: #007acc;
+        padding: 10px 15px;
+        background-color: #007bff;
         color: white;
         border: none;
-        padding: 6px 12px;
         border-radius: 4px;
         cursor: pointer;
+        font-weight: bold;
+        transition: background-color 0.2s;
       }
       button:hover {
-        background-color: #005999;
+        background-color: #0056b3;
       }
-      .btn-toggle {
-        background-color: #28a745;
-        margin-right: 5px;
-        width: 7rem;
+
+      .btn-full {
+        width: 100%;
+        margin-top: 10px;
       }
-      .btn-toggle:hover {
-        background-color: #218838;
-      }
-      .btn-delete {
+      .btn-danger {
         background-color: #dc3545;
+        padding: 6px 12px;
+        font-size: 0.85em;
+        white-space: nowrap;
       }
-      .btn-delete:hover {
+      .btn-danger:hover {
         background-color: #c82333;
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
+
+      /* ステータス切替用ボタン */
+      .btn-status {
+        padding: 6px 12px;
+        font-size: 0.85em;
+        white-space: nowrap;
       }
-      th,
-      td {
-        border: 1px solid #dee2e6;
-        padding: 10px;
-        text-align: left;
+      .btn-checkout {
+        background-color: #ffc107;
+        color: #212529;
       }
-      th {
-        background-color: #e9ecef;
+      .btn-checkout:hover {
+        background-color: #e0a800;
       }
-      .status-available {
-        color: #28a745;
-        font-weight: bold;
+      .btn-return {
+        background-color: #28a745;
+        color: white;
       }
-      .status-unavailable {
-        color: #dc3545;
-        font-weight: bold;
+      .btn-return:hover {
+        background-color: #218838;
       }
-      .status-column {
-        width: 8em;
-      }
-      .btn-delete {
-        display: flex;
-        align-items: center;
-      }
-      .form-area {
-        display: flex;
-        justify-content: space-between;
-        gap: 20px;
-      }
-      .status-class {
-        display: flex;
-        align-items: center;
-      }
-      /* カテゴリ管理用に追加したスタイル */
-      .category-management {
-        background: #fff3cd;
-        border: 1px solid #ffeeba;
-        padding: 15px 20px;
-        border-radius: 8px;
-        margin-bottom: 30px;
-      }
-      .category-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 10px;
-      }
-      .category-badge {
-        background: #ffffff;
-        border: 1px solid #ccc;
-        padding: 5px 10px;
-        border-radius: 20px;
+
+      /* 操作ボタンの横並びコンテナ */
+      .action-cell {
         display: flex;
         align-items: center;
         gap: 8px;
+        white-space: nowrap;
+      }
+
+      /* カテゴリバッジエリア */
+      #categoryBadgeList {
+        margin-top: 5px;
+        max-height: 110px;
+        overflow-y: auto;
+        border: 1px dashed #ced4da;
+        padding: 8px;
+        border-radius: 6px;
+        background-color: #fafafa;
+      }
+
+      /* カテゴリバッジ */
+      .category-badge {
+        display: inline-flex;
+        align-items: center;
+        background: #e9ecef;
+        padding: 6px 12px;
+        border-radius: 20px;
+        margin: 0 6px 6px 0;
         font-size: 0.9em;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       }
       .btn-cat-delete {
-        background-color: #dc3545;
-        color: white;
+        background: none;
         border: none;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        line-height: 18px;
-        text-align: center;
+        color: #dc3545;
         font-weight: bold;
-        padding: 0;
+        margin-left: 8px;
         cursor: pointer;
+        padding: 0 4px;
+        font-size: 1.1em;
       }
       .btn-cat-delete:hover {
-        background-color: #bd2130;
+        color: #a71d2a;
+      }
+
+      /* ステータスバッジ */
+      .status-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.85em;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+      .status-available {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .status-rented {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+
+      /* テーブルコンテナ（残りの高さを自動占有して内部スクロール） */
+      .table-container {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+      }
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background-color: #fff;
+      }
+      th,
+      td {
+        border-bottom: 1px solid #dee2e6;
+        border-right: 1px solid #dee2e6;
+        padding: 12px;
+        text-align: left;
+        vertical-align: middle;
+      }
+      th:last-child,
+      td:last-child {
+        border-right: none;
+      }
+
+      /* テーブルヘッダーの固定 (Sticky Header) */
+      th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+        color: #495057;
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+      tr:nth-child(even) {
+        background-color: #f8f9fa;
+      }
+      tr:hover {
+        background-color: #f1f3f5;
+      }
+
+      .search-area {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
+        flex-shrink: 0; /* 検索エリアが縮まないように保護 */
       }
     </style>
   </head>
   <body>
-    <h1>社内工具管理システム</h1>
-
-    <!-- カテゴリ管理（一覧＆削除）表示エリア -->
-    <div class="category-management">
-      <h3 style="margin-top: 0; margin-bottom: 10px">登録済みカテゴリ一覧</h3>
-      <div id="categoryBadgeList" class="category-list">
-        <!-- JSで動的にカテゴリと削除ボタンを表示 -->
-      </div>
+    <div class="header-area">
+      <h1>工具管理システム</h1>
     </div>
 
-    <div class="form-area">
-      <div class="form-add">
-        <!-- 新規登録フォーム -->
-        <h2>工具の新規登録</h2>
-        <form id="addToolForm">
+    <div class="container">
+      <!-- 左側カラム：登録・管理 -->
+      <div class="left-column">
+        <!-- カテゴリ管理エリア -->
+        <div class="card">
+          <h2>カテゴリ管理</h2>
+          <div class="form-group flex-group">
+            <input
+              type="text"
+              id="newCategoryName"
+              placeholder="新しいカテゴリ名"
+            />
+            <button onclick="addCategory()">追加</button>
+          </div>
+          <div style="margin-top: 15px">
+            <label>登録済みカテゴリ</label>
+            <div id="categoryBadgeList"></div>
+          </div>
+        </div>
+
+        <!-- 工具登録エリア -->
+        <div class="card">
+          <h2>新規工具登録</h2>
           <div class="form-group">
-            <label for="name">工具名:</label>
+            <label for="name">工具名</label>
             <input
               type="text"
               id="name"
-              required
               placeholder="例: インパクトドライバー"
             />
           </div>
           <div class="form-group">
-            <label for="categoryId">カテゴリ:</label>
-            <select id="categoryId" required>
-              <!-- JSで動的に<option>を追加 -->
-            </select>
+            <label for="storage">保管場所</label>
+            <input type="text" id="storage" placeholder="例: キャビネットA-1" />
           </div>
           <div class="form-group">
-            <label for="storage">保管場所:</label>
-            <input
-              type="text"
-              id="storage"
-              required
-              placeholder="例: キャビネットA-1"
-            />
+            <label for="categoryId">カテゴリ</label>
+            <select id="categoryId"></select>
           </div>
-          <div class="form-group">
-            <label for="isAvailable">ステータス:</label>
-            <select id="isAvailable">
-              <option value="true">利用可能</option>
-              <option value="false">貸出中 / 点検中</option>
-            </select>
+          <div class="form-group" style="margin-top: 20px">
+            <label
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+              "
+            >
+              <input
+                type="checkbox"
+                id="isAvailable"
+                checked
+                style="width: auto"
+              />
+              <span>現在利用可能（貸出中ではない）</span>
+            </label>
           </div>
-          <button type="submit">登録する</button>
-        </form>
+          <button class="btn-full" onclick="addTool()">工具を登録する</button>
+        </div>
       </div>
 
-      <div class="form-search">
-        <!-- 検索エリア -->
-        <h2>工具の検索</h2>
-        <div style="background: #eef6fc; padding: 20px; border-radius: 8px">
-          <div class="form-group">
-            <label for="searchName">工具名:</label>
-            <input
-              type="text"
-              id="searchName"
-              placeholder="検索したいキーワード"
-            />
+      <!-- 右側カラム：検索・一覧 -->
+      <div class="right-column">
+        <div class="card">
+          <h2>工具一覧と検索</h2>
+
+          <div class="search-area">
+            <div class="form-group" style="margin: 0">
+              <label>工具名検索</label>
+              <input
+                type="text"
+                id="searchName"
+                placeholder="名前で絞り込み"
+                oninput="fetchTools()"
+              />
+            </div>
+            <div class="form-group" style="margin: 0">
+              <label>保管場所検索</label>
+              <input
+                type="text"
+                id="searchStorage"
+                placeholder="場所で絞り込み"
+                oninput="fetchTools()"
+              />
+            </div>
+            <div class="form-group" style="margin: 0">
+              <label>カテゴリ</label>
+              <select id="searchCategory" onchange="fetchTools()">
+                <option value="">すべて</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin: 0">
+              <label>貸出状況</label>
+              <select id="searchAvailable" onchange="fetchTools()">
+                <option value="">すべて</option>
+                <option value="true">利用可能のみ</option>
+                <option value="false">貸出中のみ</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="searchCategory">カテゴリ:</label>
-            <select id="searchCategory">
-              <option value="">すべて表示</option>
-              <!-- JSで動的に<option>を追加 -->
-            </select>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 50px">ID</th>
+                  <th>工具名</th>
+                  <th>保管場所</th>
+                  <th>カテゴリ</th>
+                  <th style="width: 100px">状態</th>
+                  <th style="width: 170px">操作</th>
+                </tr>
+              </thead>
+              <tbody id="toolTableBody">
+                <!-- JSで動的に行が挿入されます -->
+              </tbody>
+            </table>
           </div>
-          <div class="form-group">
-            <label for="searchStorage">保管場所：</label>
-            <input
-              type="text"
-              id="searchStorage"
-              placeholder="検索したい保管場所"
-            />
-          </div>
-          <div class="form-group">
-            <label for="searchStatus">ステータス:</label>
-            <select id="searchStatus">
-              <option value="">すべて表示</option>
-              <option value="true">利用可能</option>
-              <option value="false">貸出中 / 点検中</option>
-            </select>
-          </div>
-          <button type="button" onclick="fetchTools()">検索する</button>
-          <button
-            type="button"
-            onclick="clearSearch()"
-            style="background-color: #6c757d"
-          >
-            クリア
-          </button>
         </div>
       </div>
     </div>
-
-    <!-- 一覧表示テーブル -->
-    <h2>工具一覧</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>工具名</th>
-          <th>カテゴリ</th>
-          <th>保管場所</th>
-          <th class="status-column">利用状況</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody id="toolsTableBody">
-        <!-- JSで動的に表示 -->
-      </tbody>
-    </table>
 
     <script>
       document.addEventListener("DOMContentLoaded", () => {
@@ -265,13 +412,10 @@
         fetchTools();
       });
 
-      // カテゴリ一覧を取得して「ドロップダウン」および「カテゴリ管理一覧」に反映
       async function fetchCategories() {
         try {
           const response = await fetch("/api/categories");
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
+          if (!response.ok) throw new Error("カテゴリ取得失敗");
           const categories = await response.json();
 
           const addSelect = document.getElementById("categoryId");
@@ -279,216 +423,217 @@
           const categoryBadgeList =
             document.getElementById("categoryBadgeList");
 
-          // 要素が存在する場合のみ初期化
           if (addSelect) addSelect.innerHTML = "";
           if (searchSelect)
-            searchSelect.innerHTML = '<option value="">すべて表示</option>';
+            searchSelect.innerHTML =
+              '<option value="">すべてのカテゴリ</option>';
           if (categoryBadgeList) categoryBadgeList.innerHTML = "";
 
           categories.forEach((cat) => {
-            // 1. 登録用ドロップダウンへの追加
             if (addSelect) {
-              const optAdd = document.createElement("option");
-              optAdd.value = cat.id;
-              optAdd.textContent = cat.name;
-              addSelect.appendChild(optAdd);
+              const opt = document.createElement("option");
+              opt.value = cat.id;
+              opt.textContent = cat.name;
+              addSelect.appendChild(opt);
             }
-
-            // 2. 検索用ドロップダウンへの追加
             if (searchSelect) {
-              const optSearch = document.createElement("option");
-              optSearch.value = cat.id;
-              optSearch.textContent = cat.name;
-              searchSelect.appendChild(optSearch);
+              const opt = document.createElement("option");
+              opt.value = cat.id;
+              opt.textContent = cat.name;
+              searchSelect.appendChild(opt);
             }
-
-            // 3. カテゴリ一覧表示エリアへのバッジ追加
             if (categoryBadgeList) {
               const badge = document.createElement("div");
               badge.className = "category-badge";
-
               const deleteBtn =
                 cat.id !== 1
                   ? `<button class="btn-cat-delete" title="削除" onclick="deleteCategory(${cat.id}, '${cat.name}')">×</button>`
                   : `<span style="font-size:0.8em; color:#888;">(初期)</span>`;
-
               badge.innerHTML = `<span>${cat.name}</span> ${deleteBtn}`;
               categoryBadgeList.appendChild(badge);
             }
           });
         } catch (error) {
-          console.error("カテゴリ一覧の取得処理でエラーが発生しました:", error);
+          console.error("カテゴリ一覧の取得エラー:", error);
         }
       }
 
-      // 工具一覧の取得（検索条件付き）
-      async function fetchTools() {
-        const searchName = document.getElementById("searchName").value;
-        const searchCategory = document.getElementById("searchCategory").value;
-        const searchStorage = document.getElementById("searchStorage").value;
-        const searchStatus = document.getElementById("searchStatus").value;
-
-        const params = new URLSearchParams();
-        if (searchName) params.append("name", searchName);
-        if (searchCategory) params.append("categoryId", searchCategory);
-        if (searchStorage) params.append("storage", searchStorage);
-        if (searchStatus) params.append("isAvailable", searchStatus);
-
-        const queryString = params.toString();
-        const url = queryString ? `/api/tools?${queryString}` : "/api/tools";
-
-        try {
-          const response = await fetch(url);
-          const tools = await response.json();
-
-          const tbody = document.getElementById("toolsTableBody");
-          tbody.innerHTML = "";
-
-          tools.forEach((tool) => {
-            const tr = document.createElement("tr");
-            const statusText = tool.isAvailable
-              ? "利用可能"
-              : "貸出中 / 点検中";
-            const statusClass = tool.isAvailable
-              ? "status-available"
-              : "status-unavailable";
-            const toggleLabel = tool.isAvailable ? "貸出中に変更" : "返却処理";
-
-            tr.innerHTML = `
-              <td>${tool.name}</td>
-              <td>${tool.categoryName || "未分類"}</td>
-              <td>${tool.storage}</td>
-              <td class="${statusClass}">${statusText}</td>
-              <td class="status-class">
-                  <button class="btn-toggle" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.isAvailable}, ${tool.categoryId})">${toggleLabel}</button>
-                  <button class="btn-delete" onclick="deleteTool(${tool.id})">削除</button>
-              </td>
-            `;
-            tbody.appendChild(tr);
-          });
-        } catch (error) {
-          console.error("データの取得に失敗しました:", error);
-        }
-      }
-
-      function clearSearch() {
-        document.getElementById("searchName").value = "";
-        document.getElementById("searchCategory").value = "";
-        document.getElementById("searchStorage").value = "";
-        document.getElementById("searchStatus").value = "";
-        fetchTools();
-      }
-
-      // 新規登録
-      document
-        .getElementById("addToolForm")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-
-          const newTool = {
-            name: document.getElementById("name").value,
-            categoryId: parseInt(
-              document.getElementById("categoryId").value,
-              10,
-            ),
-            storage: document.getElementById("storage").value,
-            isAvailable:
-              document.getElementById("isAvailable").value === "true",
-          };
-
-          try {
-            const response = await fetch("/api/tools", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(newTool),
-            });
-
-            if (response.ok) {
-              document.getElementById("addToolForm").reset();
-              fetchTools();
-            } else {
-              const errorMessage = await response.text();
-              alert(`エラー: ${errorMessage}`);
-            }
-          } catch (error) {
-            console.error("送信エラー:", error);
-          }
-        });
-
-      // 更新
-      async function toggleStatus(
-        id,
-        name,
-        storage,
-        currentStatus,
-        categoryId,
-      ) {
-        const updatedTool = {
-          id: id,
-          name: name,
-          storage: storage,
-          isAvailable: !currentStatus,
-          categoryId: categoryId,
-        };
-
-        const response = await fetch(`/api/tools/${id}`, {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(updatedTool),
-        });
-        if (response.ok) {
-          fetchTools();
-        } else {
-          const errorMessage = await response.text();
-          alert(`ステータス更新に失敗しました: ${errorMessage}`);
-        }
-      }
-
-      // 削除
-      async function deleteTool(id) {
-        if (!confirm(`ID : ${id} の工具を削除しますか？`)) return;
-
-        const response = await fetch(`/api/tools/${id}`, {
-          method: "DELETE",
-        });
-        if (response.ok) {
-          fetchTools();
-        } else {
-          alert("削除に失敗しました");
-        }
-      }
-
-      // --- カテゴリの安全削除処理 ---
-      async function deleteCategory(categoryId, categoryName) {
-        if (categoryId === 1) {
-          alert("初期カテゴリ（ID: 1）は削除できません。");
+      async function addCategory() {
+        const input = document.getElementById("newCategoryName");
+        const name = input.value.trim();
+        if (!name) {
+          alert("カテゴリ名を入力してください。");
           return;
         }
 
-        const isConfirmed = confirm(
-          `カテゴリ「${categoryName}」を削除しますか？\n` +
-            `※このカテゴリに属する工具は自動的に「初期カテゴリ」へ移動します。`,
-        );
-
-        if (!isConfirmed) return;
-
         try {
-          const response = await fetch(`/api/categories/${categoryId}`, {
-            method: "DELETE",
+          const response = await fetch("/api/categories", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name }),
           });
 
           if (response.ok) {
-            alert("カテゴリを削除しました。");
-            // 削除成功後、カテゴリ一覧と工具一覧の両方を最新に更新
-            fetchCategories();
-            fetchTools();
+            input.value = "";
+            await fetchCategories();
           } else {
-            const errorText = await response.text();
-            alert(`削除に失敗しました: ${errorText}`);
+            const errText = await response.text();
+            alert("登録エラー: " + errText);
           }
         } catch (error) {
-          console.error("エラーが発生しました:", error);
-          alert("通信エラーが発生しました。");
+          console.error("カテゴリ追加処理エラー:", error);
+        }
+      }
+
+      async function deleteCategory(id, name) {
+        if (
+          !confirm(
+            `カテゴリ「${name}」を削除しますか？\n（所属する工具は「電動工具」へ自動移動します）`,
+          )
+        )
+          return;
+
+        try {
+          const response = await fetch(`/api/categories/${id}`, {
+            method: "DELETE",
+          });
+          if (response.ok) {
+            await fetchCategories();
+            await fetchTools();
+          } else {
+            const errText = await response.text();
+            alert("削除エラー: " + errText);
+          }
+        } catch (error) {
+          console.error("カテゴリ削除エラー:", error);
+        }
+      }
+
+      async function fetchTools() {
+        const name = document.getElementById("searchName").value;
+        const storage = document.getElementById("searchStorage").value;
+        const categoryId = document.getElementById("searchCategory").value;
+        const isAvailable = document.getElementById("searchAvailable").value;
+
+        const params = new URLSearchParams();
+        if (name) params.append("name", name);
+        if (storage) params.append("storage", storage);
+        if (categoryId) params.append("categoryId", categoryId);
+        if (isAvailable) params.append("isAvailable", isAvailable);
+
+        try {
+          const response = await fetch(`/api/tools?${params.toString()}`);
+          if (!response.ok) throw new Error("工具一覧取得失敗");
+          const tools = await response.json();
+
+          const tbody = document.getElementById("toolTableBody");
+          tbody.innerHTML = "";
+
+          tools.forEach((tool) => {
+            const isAvail =
+              tool.isAvailable !== undefined
+                ? tool.isAvailable
+                : tool.IsAvailable;
+
+            const statusBadge = isAvail
+              ? `<span class="status-badge status-available">利用可能</span>`
+              : `<span class="status-badge status-rented">貸出中</span>`;
+
+            const toggleBtn = isAvail
+              ? `<button class="btn-status btn-checkout" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.categoryId}, false)">貸出する</button>`
+              : `<button class="btn-status btn-return" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.categoryId}, true)">返却する</button>`;
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+            <td>${tool.id}</td>
+            <td>${tool.name}</td>
+            <td>${tool.storage}</td>
+            <td>${tool.categoryName}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <div class="action-cell">
+                ${toggleBtn}
+                <button class="btn-danger" onclick="deleteTool(${tool.id})">削除</button>
+              </div>
+            </td>
+          `;
+            tbody.appendChild(tr);
+          });
+        } catch (error) {
+          console.error("工具一覧取得エラー:", error);
+        }
+      }
+
+      async function toggleStatus(id, name, storage, categoryId, newStatus) {
+        try {
+          const response = await fetch(`/api/tools/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: id,
+              name: name,
+              storage: storage,
+              categoryId: categoryId,
+              isAvailable: newStatus,
+            }),
+          });
+
+          if (response.ok) {
+            await fetchTools();
+          } else {
+            alert("ステータス変更に失敗しました。");
+          }
+        } catch (error) {
+          console.error("ステータス変更エラー:", error);
+        }
+      }
+
+      async function addTool() {
+        const name = document.getElementById("name").value.trim();
+        const storage = document.getElementById("storage").value.trim();
+        const categoryId = parseInt(
+          document.getElementById("categoryId").value,
+        );
+        const isAvailable = document.getElementById("isAvailable").checked;
+
+        if (!name || !storage) {
+          alert("工具名と保管場所は必須入力です。");
+          return;
+        }
+
+        try {
+          const response = await fetch("/api/tools", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, storage, categoryId, isAvailable }),
+          });
+
+          if (response.ok) {
+            document.getElementById("name").value = "";
+            document.getElementById("storage").value = "";
+            await fetchTools();
+          } else {
+            alert("登録に失敗しました。");
+          }
+        } catch (error) {
+          console.error("工具登録エラー:", error);
+        }
+      }
+
+      async function deleteTool(id) {
+        if (!confirm("本当に削除しますか？")) return;
+
+        try {
+          const response = await fetch(`/api/tools/${id}`, {
+            method: "DELETE",
+          });
+          if (response.ok) {
+            await fetchTools();
+          } else {
+            alert("削除に失敗しました。");
+          }
+        } catch (error) {
+          console.error("工具削除エラー:", error);
         }
       }
     </script>

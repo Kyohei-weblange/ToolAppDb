@@ -108,6 +108,22 @@ Public Class ToolRepository
         Return categories
     End Function
 
+    ' カテゴリ追加
+    Public Async Function AddCategoryAsync(name As String) As Task(Of Boolean)
+        Using connection As New SqliteConnection(_connectionString)
+            Await connection.OpenAsync()
+            Dim command = connection.CreateCommand()
+            command.CommandText = "INSERT INTO Categories (Name) VALUES (@Name)"
+            command.Parameters.AddWithValue("@Name", name)
+            Try
+                Await command.ExecuteNonQueryAsync()
+                Return True
+            Catch
+                Return False
+            End Try
+        End Using
+    End Function
+
     ' 新規追加（CategoryId対応）
     Public Async Function AddAsync(newTool As ToolItem) As Task
         Using connection As New SqliteConnection(_connectionString)

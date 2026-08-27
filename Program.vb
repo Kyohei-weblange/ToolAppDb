@@ -113,6 +113,20 @@ Module Program
             End If
         End Function)
 
+        ' 7.カテゴリの新規追加
+        app.MapPost("/api/categories", Function(newCat As CategoryItem)
+            If String.IsNullOrWhiteSpace(newCat.Name) Then
+                Return Results.BadRequest("カテゴリ名は必須です。")
+            End If
+
+            Dim success = repository.AddCategoryAsync(newCat.Name.Trim()).GetAwaiter().GetResult()
+            If success Then
+                Return Results.Created("/api/categories", newCat)
+            Else
+                Return Results.BadRequest("同名のカテゴリがすでに存在するか、登録に失敗しました。")
+            End If
+        End Function)
+
         app.Run()
     End Sub
 End Module
