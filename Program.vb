@@ -28,6 +28,13 @@ Public Class ToolItem
     End Function
 End Class
 
+Public Class ToolLog
+    Public Property Id As Integer
+    Public Property ToolId As Integer
+    Public Property Action As String
+    Public Property Timestamp As DateTime
+End Class
+
 ' --- メイン処理 ---
 Module Program
     Sub Main(args As String())
@@ -74,15 +81,20 @@ Module Program
         ' 4. 工具の更新
         app.MapPut("/api/tools/{id:int}", Function(id As Integer, updatedTool As ToolItem)
             Dim errors = updatedTool.Validate()
+            Dim addLog As New ToolLog()
             If errors.Count > 0 Then
                 Return Results.BadRequest(New With {Key .Errors = errors})
             End If
 
             updatedTool.Name = If(updatedTool.Name, "").Trim()
             updatedTool.Storage = If(updatedTool.Storage, "").Trim()
+            addLog.ToolId = id
+            addLog.Action = If(updatedTool.IsAvailable, "返却", "貸出")
+            addLog.Timestamp = DateTime.Now
 
             Dim success = repository.UpdateAsync(id, updatedTool).GetAwaiter().GetResult()
             If success Then
+                repository.AddLogAsync(addLog).GetAwaiter().GetResult()
                 Return Results.Ok()
             Else
                 Return Results.NotFound($"ID: {id} の工具は見つかりませんでした。")

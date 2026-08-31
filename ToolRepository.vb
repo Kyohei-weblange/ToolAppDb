@@ -28,6 +28,12 @@ Public Class ToolRepository
                     (1, '電動工具'),
                     (2, '作業工具'),
                     (3, '測定工具');
+                CREATE TABLE IF NOT EXISTS ToolLogs (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ToolId INTEGER NOT NULL,
+                    Action TEXT NOT NULL,
+                    Timestamp DATETIME NOT NULL
+                );
                 "
             command.ExecuteNonQuery()
         End Using
@@ -115,6 +121,27 @@ Public Class ToolRepository
             Dim command = connection.CreateCommand()
             command.CommandText = "INSERT INTO Categories (Name) VALUES (@Name)"
             command.Parameters.AddWithValue("@Name", name)
+            Try
+                Await command.ExecuteNonQueryAsync()
+                Return True
+            Catch
+                Return False
+            End Try
+        End Using
+    End Function
+
+    ' 履歴保存
+    Public Async Function AddLogAsync(addLog As ToolLog) As Task(Of Boolean)
+        Using connection As New SqliteConnection(_connectionString)
+            Await connection.OpenAsync()
+            Dim command = connection.CreateCommand()
+            command.CommandText = "
+                INSERT INTO ToolLogs (ToolId, Action, Timestamp)
+                VALUES (@ToolId, @Action, @Timestamp)
+            "
+            command.Parameters.AddWithValue("@ToolId", addLog.ToolId)
+            command.Parameters.AddWithValue("@Action", addLog.Action)
+            command.Parameters.AddWithValue("@Timestamp", addLog.Timestamp)
             Try
                 Await command.ExecuteNonQueryAsync()
                 Return True
