@@ -64,6 +64,12 @@ Module Program
             Return Results.Ok(tools)
         End Function)
 
+        ' 履歴一覧の取得
+        app.MapGet("/api/logs", Function()
+            Dim logs = repository.GetLogsAsync().GetAwaiter().GetResult()
+            Return Results.Ok(logs)
+        End Function)
+
         ' 3. 工具の新規登録
         app.MapPost("/api/tools", Function(newTool As ToolItem)
             Dim errors = newTool.Validate()

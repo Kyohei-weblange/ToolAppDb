@@ -114,6 +114,27 @@ Public Class ToolRepository
         Return categories
     End Function
 
+    ' 履歴一覧の取得
+    Public Async Function GetLogsAsync() As Task(Of List(Of ToolLog))
+        Dim logs As New List(Of ToolLog)()
+        Using connection As New SqliteConnection(_connectionString)
+            Await connection.OpenAsync()
+            Dim command = connection.CreateCommand()
+            command.CommandText = "SELECT Id, ToolId, Action, Timestamp FROM ToolLogs ORDER BY Id DESC"
+            Using reader = Await command.ExecuteReaderAsync()
+                While Await reader.ReadAsync()
+                    logs.Add(New ToolLog With {
+                        .Id = reader.GetInt32(0),
+                        .ToolId = reader.GetInt32(1),
+                        .Action = reader.GetString(2),
+                        .Timestamp = reader.GetDateTime(3)
+                    })
+                End While
+            End Using
+        End Using
+        Return logs
+    End Function
+
     ' カテゴリ追加
     Public Async Function AddCategoryAsync(name As String) As Task(Of Boolean)
         Using connection As New SqliteConnection(_connectionString)

@@ -343,6 +343,25 @@
           </div>
           <button class="btn-full" onclick="addTool()">工具を登録する</button>
         </div>
+
+        <!-- 貸出・返却履歴エリア（追加） -->
+        <div class="card">
+          <h2>貸出・返却履歴</h2>
+          <div class="table-container" style="max-height: 250px">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 70px">工具ID</th>
+                  <th style="width: 70px">操作</th>
+                  <th>日時</th>
+                </tr>
+              </thead>
+              <tbody id="logTableBody">
+                <!-- JSで動的に履歴行が挿入されます -->
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- 右側カラム：検索・一覧 -->
@@ -410,6 +429,7 @@
       document.addEventListener("DOMContentLoaded", () => {
         fetchCategories();
         fetchTools();
+        fetchLogs(); // 履歴一覧の初回読み込みを追加
       });
 
       async function fetchCategories() {
@@ -564,6 +584,45 @@
         }
       }
 
+      /* 履歴一覧の取得・表示関数（追加） */
+      async function fetchLogs() {
+        try {
+          const response = await fetch("/api/logs");
+          if (!response.ok) throw new Error("履歴一覧取得失敗");
+          const logs = await response.json();
+
+          const tbody = document.getElementById("logTableBody");
+          tbody.innerHTML = "";
+
+          logs.forEach((log) => {
+            const toolId = log.toolId || log.ToolId;
+            const action = log.action || log.Action;
+            const rawTimestamp = log.timestamp || log.Timestamp;
+
+            // 日時を読みやすい形式に整形 (YYYY/MM/DD HH:mm:ss)
+            const dateObj = new Date(rawTimestamp);
+            const formattedDate = isNaN(dateObj.getTime())
+              ? rawTimestamp
+              : dateObj.toLocaleString("ja-JP");
+
+            const actionBadge =
+              action === "返却"
+                ? `<span class="status-badge status-available">返却</span>`
+                : `<span class="status-badge status-rented">貸出</span>`;
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${toolId}</td>
+              <td>${actionBadge}</td>
+              <td style="font-size:0.85em;">${formattedDate}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } catch (error) {
+          console.error("履歴一覧取得エラー:", error);
+        }
+      }
+
       async function toggleStatus(id, name, storage, categoryId, newStatus) {
         try {
           const response = await fetch(`/api/tools/${id}`, {
@@ -580,6 +639,7 @@
 
           if (response.ok) {
             await fetchTools();
+            await fetchLogs(); // ステータス変更成功時に履歴も自動更新（追加）
           } else {
             alert("ステータス変更に失敗しました。");
           }
