@@ -265,6 +265,10 @@
       tr:hover {
         background-color: #f1f3f5;
       }
+      /* 履歴テーブル内のセルが途中で折り返されるのを防ぐ */
+      #logTableBody td {
+        white-space: nowrap;
+      }
 
       .search-area {
         display: grid;
@@ -351,9 +355,9 @@
             <table>
               <thead>
                 <tr>
-                  <th style="width: 70px">工具ID</th>
-                  <th style="width: 70px">操作</th>
-                  <th>日時</th>
+                  <th style="width: 140px">工具名</th>
+                  <th style="width: 60px">操作</th>
+                  <th style="width: 120px">日時</th>
                 </tr>
               </thead>
               <tbody id="logTableBody">
@@ -595,7 +599,7 @@
           tbody.innerHTML = "";
 
           logs.forEach((log) => {
-            const toolId = log.toolId || log.ToolId;
+            const toolName = log.toolName || log.ToolName;
             const action = log.action || log.Action;
             const rawTimestamp = log.timestamp || log.Timestamp;
 
@@ -612,7 +616,7 @@
 
             const tr = document.createElement("tr");
             tr.innerHTML = `
-              <td>${toolId}</td>
+              <td>${toolName}</td>
               <td>${actionBadge}</td>
               <td style="font-size:0.85em;">${formattedDate}</td>
             `;

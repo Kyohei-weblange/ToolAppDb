@@ -31,6 +31,7 @@ End Class
 Public Class ToolLog
     Public Property Id As Integer
     Public Property ToolId As Integer
+    Public Property ToolName As String
     Public Property Action As String
     Public Property Timestamp As DateTime
 End Class

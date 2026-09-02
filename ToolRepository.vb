@@ -120,14 +120,15 @@ Public Class ToolRepository
         Using connection As New SqliteConnection(_connectionString)
             Await connection.OpenAsync()
             Dim command = connection.CreateCommand()
-            command.CommandText = "SELECT Id, ToolId, Action, Timestamp FROM ToolLogs ORDER BY Id DESC"
+            command.CommandText = "SELECT ToolLogs.Id, ToolId,Tools.Name As ToolName,  Action, Timestamp FROM ToolLogs INNER JOIN Tools ON ToolLogs.ToolId = Tools.Id ORDER BY ToolLogs.Id DESC"
             Using reader = Await command.ExecuteReaderAsync()
                 While Await reader.ReadAsync()
                     logs.Add(New ToolLog With {
                         .Id = reader.GetInt32(0),
                         .ToolId = reader.GetInt32(1),
-                        .Action = reader.GetString(2),
-                        .Timestamp = reader.GetDateTime(3)
+                        .ToolName = reader.GetString(2),
+                        .Action = reader.GetString(3),
+                        .Timestamp = reader.GetDateTime(4)
                     })
                 End While
             End Using
