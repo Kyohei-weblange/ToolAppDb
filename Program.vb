@@ -15,6 +15,7 @@ Public Class ToolItem
     Public Property IsAvailable As Boolean
     Public Property CategoryId As Integer
     Public Property CategoryName As String
+    Public Property UserName As String
 
     Public Function Validate() As List(Of String)
         Dim errors As New List(Of String)()
@@ -34,6 +35,7 @@ Public Class ToolLog
     Public Property ToolName As String
     Public Property Action As String
     Public Property Timestamp As DateTime
+    Public Property UserName As String
 End Class
 
 ' --- メイン処理 ---
@@ -86,7 +88,7 @@ Module Program
         End Function)
 
         ' 4. 工具の更新
-        app.MapPut("/api/tools/{id:int}", Function(id As Integer, updatedTool As ToolItem)
+        app.MapPut("/api/tools/{id:int}", Async Function(id As Integer, updatedTool As ToolItem) As Task(Of IResult)
             Dim errors = updatedTool.Validate()
             Dim addLog As New ToolLog()
             If errors.Count > 0 Then
@@ -98,10 +100,11 @@ Module Program
             addLog.ToolId = id
             addLog.Action = If(updatedTool.IsAvailable, "返却", "貸出")
             addLog.Timestamp = DateTime.Now
+            addLog.UserName = If(updatedTool.UserName, "").Trim()
 
-            Dim success = repository.UpdateAsync(id, updatedTool).GetAwaiter().GetResult()
+            Dim success = Await repository.UpdateAsync(id, updatedTool)
             If success Then
-                repository.AddLogAsync(addLog).GetAwaiter().GetResult()
+                Await repository.AddLogAsync(addLog)
                 Return Results.Ok()
             Else
                 Return Results.NotFound($"ID: {id} の工具は見つかりませんでした。")

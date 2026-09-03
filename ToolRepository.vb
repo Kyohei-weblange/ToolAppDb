@@ -32,7 +32,8 @@ Public Class ToolRepository
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
                     ToolId INTEGER NOT NULL,
                     Action TEXT NOT NULL,
-                    Timestamp DATETIME NOT NULL
+                    Timestamp DATETIME NOT NULL,
+                    UserName TEXT NOT NULL
                 );
                 "
             command.ExecuteNonQuery()
@@ -120,7 +121,7 @@ Public Class ToolRepository
         Using connection As New SqliteConnection(_connectionString)
             Await connection.OpenAsync()
             Dim command = connection.CreateCommand()
-            command.CommandText = "SELECT ToolLogs.Id, ToolId,Tools.Name As ToolName,  Action, Timestamp FROM ToolLogs INNER JOIN Tools ON ToolLogs.ToolId = Tools.Id ORDER BY ToolLogs.Id DESC"
+            command.CommandText = "SELECT ToolLogs.Id, ToolId,Tools.Name As ToolName,  Action, Timestamp, UserName FROM ToolLogs INNER JOIN Tools ON ToolLogs.ToolId = Tools.Id ORDER BY ToolLogs.Id DESC"
             Using reader = Await command.ExecuteReaderAsync()
                 While Await reader.ReadAsync()
                     logs.Add(New ToolLog With {
@@ -128,7 +129,8 @@ Public Class ToolRepository
                         .ToolId = reader.GetInt32(1),
                         .ToolName = reader.GetString(2),
                         .Action = reader.GetString(3),
-                        .Timestamp = reader.GetDateTime(4)
+                        .Timestamp = reader.GetDateTime(4),
+                        .UserName = reader.GetString(5)
                     })
                 End While
             End Using
@@ -158,12 +160,13 @@ Public Class ToolRepository
             Await connection.OpenAsync()
             Dim command = connection.CreateCommand()
             command.CommandText = "
-                INSERT INTO ToolLogs (ToolId, Action, Timestamp)
-                VALUES (@ToolId, @Action, @Timestamp)
+                INSERT INTO ToolLogs (ToolId, Action, Timestamp, UserName)
+                VALUES (@ToolId, @Action, @Timestamp, @UserName)
             "
             command.Parameters.AddWithValue("@ToolId", addLog.ToolId)
             command.Parameters.AddWithValue("@Action", addLog.Action)
             command.Parameters.AddWithValue("@Timestamp", addLog.Timestamp)
+            command.Parameters.AddWithValue("@UserName", addLog.UserName)
             Try
                 Await command.ExecuteNonQueryAsync()
                 Return True

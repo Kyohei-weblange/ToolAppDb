@@ -356,6 +356,7 @@
               <thead>
                 <tr>
                   <th style="width: 140px">工具名</th>
+                  <th style="width: 100px">利用者</th>
                   <th style="width: 60px">操作</th>
                   <th style="width: 120px">日時</th>
                 </tr>
@@ -602,6 +603,7 @@
             const toolName = log.toolName || log.ToolName;
             const action = log.action || log.Action;
             const rawTimestamp = log.timestamp || log.Timestamp;
+            const userName = log.userName || log.UserName || "未設定";
 
             // 日時を読みやすい形式に整形 (YYYY/MM/DD HH:mm:ss)
             const dateObj = new Date(rawTimestamp);
@@ -617,6 +619,7 @@
             const tr = document.createElement("tr");
             tr.innerHTML = `
               <td>${toolName}</td>
+              <td>${userName}</td>
               <td>${actionBadge}</td>
               <td style="font-size:0.85em;">${formattedDate}</td>
             `;
@@ -628,6 +631,12 @@
       }
 
       async function toggleStatus(id, name, storage, categoryId, newStatus) {
+        // 利用者名の入力ダイアログを表示
+        const userName = prompt("利用者名を入力してください:");
+        if (!userName || !userName.trim()) {
+          alert("利用者名は必須です。操作をキャンセルしました。");
+          return; // 未入力やキャンセルの場合は処理を中断
+        }
         try {
           const response = await fetch(`/api/tools/${id}`, {
             method: "PUT",
@@ -638,6 +647,7 @@
               storage: storage,
               categoryId: categoryId,
               isAvailable: newStatus,
+              userName: userName.trim()
             }),
           });
 
