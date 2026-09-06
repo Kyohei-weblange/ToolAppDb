@@ -611,10 +611,16 @@
               ? rawTimestamp
               : dateObj.toLocaleString("ja-JP");
 
-            const actionBadge =
-              action === "返却"
-                ? `<span class="status-badge status-available">返却</span>`
-                : `<span class="status-badge status-rented">貸出</span>`;
+            let actionBadge = "";
+
+            if (action === "返却") {
+              actionBadge = `<span class="status-badge status-available">返却</span>`;
+            } else if (action === "登録") {
+              // 必要に応じて CSS で .status-registered などを作成して割り当てることも可能です
+              actionBadge = `<span class="status-badge status-available">登録</span>`;
+            } else {
+              actionBadge = `<span class="status-badge status-rented">貸出</span>`;
+            }
 
             const tr = document.createElement("tr");
             tr.innerHTML = `
@@ -647,7 +653,7 @@
               storage: storage,
               categoryId: categoryId,
               isAvailable: newStatus,
-              userName: userName.trim()
+              userName: userName.trim(),
             }),
           });
 
@@ -675,17 +681,31 @@
           return;
         }
 
+        // ① 利用者名（登録者名）の入力ダイアログを表示
+        const userName = prompt("登録者の名前を入力してください:");
+        if (!userName || !userName.trim()) {
+          alert("登録者名は必須です。登録をキャンセルしました。");
+          return;
+        }
+
         try {
           const response = await fetch("/api/tools", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, storage, categoryId, isAvailable }),
+            body: JSON.stringify({
+              name,
+              storage,
+              categoryId,
+              isAvailable,
+              userName: userName.trim(), // ② 送信データに userName を追加
+            }),
           });
 
           if (response.ok) {
             document.getElementById("name").value = "";
             document.getElementById("storage").value = "";
             await fetchTools();
+            await fetchLogs(); // ③ 登録完了時に履歴一覧も更新
           } else {
             alert("登録に失敗しました。");
           }

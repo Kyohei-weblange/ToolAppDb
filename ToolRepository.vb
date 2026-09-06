@@ -177,13 +177,14 @@ Public Class ToolRepository
     End Function
 
     ' 新規追加（CategoryId対応）
-    Public Async Function AddAsync(newTool As ToolItem) As Task
+    Public Async Function AddAsync(newTool As ToolItem) As Task(Of Integer)
         Using connection As New SqliteConnection(_connectionString)
             Await connection.OpenAsync()
             Dim command = connection.CreateCommand()
             command.CommandText = "
                 INSERT INTO Tools (Name, Storage, IsAvailable,CategoryId)
-                VALUES (@Name, @Storage, @IsAvailable, @CategoryId)
+                VALUES (@Name, @Storage, @IsAvailable, @CategoryId);
+                SELECT Last_insert_rowid();
             "
             command.Parameters.AddWithValue("@Name", newTool.Name)
             command.Parameters.AddWithValue("@Storage", newTool.Storage)
@@ -191,7 +192,9 @@ Public Class ToolRepository
             ' CategoryIdが未指定（0など）の場合は初期値1を設定
             Dim catId As Integer = If(newTool.CategoryId <= 0, 1, newTool.CategoryId)
             command.Parameters.AddWithValue("@CategoryId", catId)
-            Await command.ExecuteNonQueryAsync()
+            Dim result = Await command.ExecuteScalarAsync()
+            Dim newId As Integer = Convert.ToInt32(result)
+            Return newId
         End Using
     End Function
 

@@ -74,8 +74,9 @@ Module Program
         End Function)
 
         ' 3. 工具の新規登録
-        app.MapPost("/api/tools", Function(newTool As ToolItem)
+        app.MapPost("/api/tools", Async Function(newTool As ToolItem) As Task(Of IResult)
             Dim errors = newTool.Validate()
+            Dim addLog As New ToolLog()
             If errors.Count > 0 Then
                 Return Results.BadRequest(New With {Key .Errors = errors})
             End If
@@ -83,8 +84,18 @@ Module Program
             newTool.Name = If(newTool.Name, "").Trim()
             newTool.Storage = If(newTool.Storage, "").Trim()
 
-            repository.AddAsync(newTool).GetAwaiter().GetResult()
-            Return Results.Created("/api/tools", newTool)
+            Dim id = Await repository.AddAsync(newTool)
+            If id > 0 Then
+                addLog.ToolId = Id
+                addLog.Action = "登録"
+                addLog.Timestamp = DateTime.Now
+                addLog.UserName = If(newTool.UserName, "").Trim()
+                Await repository.AddLogAsync(addLog)
+                ' Return Results.Created("/api/tools", newTool)
+                Return Results.Ok()
+            Else
+                Return Results.BadRequest("登録に失敗しました。")
+            End If
         End Function)
 
         ' 4. 工具の更新
