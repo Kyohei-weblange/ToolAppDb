@@ -62,8 +62,8 @@ Module Program
         End Function)
 
         ' 2. 工具一覧の取得（検索対応）
-        app.MapGet("/api/tools", Function(name As String, isAvailable As String, storage As String, categoryId As String)
-            Dim tools = repository.GetAllAsync(name, isAvailable, storage, categoryId).GetAwaiter().GetResult()
+        app.MapGet("/api/tools", Async Function(name As String, storage As String, categoryId As Integer?, isAvailable As Boolean?) As Task(Of IResult)
+            Dim tools = Await repository.SearchAsync(name, storage, categoryId, isAvailable)
             Return Results.Ok(tools)
         End Function)
 

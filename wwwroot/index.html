@@ -535,10 +535,18 @@
       }
 
       async function fetchTools() {
-        const name = document.getElementById("searchName").value;
-        const storage = document.getElementById("searchStorage").value;
-        const categoryId = document.getElementById("searchCategory").value;
-        const isAvailable = document.getElementById("searchAvailable").value;
+        const name = document.getElementById("searchName")
+          ? document.getElementById("searchName").value.trim()
+          : "";
+        const storage = document.getElementById("searchStorage")
+          ? document.getElementById("searchStorage").value.trim()
+          : "";
+        const categoryId = document.getElementById("searchCategory")
+          ? document.getElementById("searchCategory").value
+          : "";
+        const isAvailable = document.getElementById("searchAvailable")
+          ? document.getElementById("searchAvailable").value
+          : "";
 
         const params = new URLSearchParams();
         if (name) params.append("name", name);

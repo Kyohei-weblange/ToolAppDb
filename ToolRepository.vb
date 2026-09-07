@@ -40,61 +40,6 @@ Public Class ToolRepository
         End Using
     End Sub
 
-    ' 一覧取得（検索条件付き）
-    Public Async Function GetAllAsync(name As String, isAvailable As String, storage As String, categoryId As String) As Task(Of List(Of ToolItem))
-        Dim tools As New List(Of ToolItem)()
-        Using connection As New SqliteConnection(_connectionString)
-            Await connection.OpenAsync()
-            Dim command = connection.CreateCommand()
-            Dim sql As String = "
-                SELECT
-                    T.Id,
-                    T.Name,
-                    T.Storage,
-                    T.IsAvailable,
-                    T.CategoryId,
-                    COALESCE(C.Name, '未分類') AS CategoryName
-                FROM Tools T
-                LEFT JOIN Categories C ON T.CategoryId = C.Id
-                WHERE 1=1
-            "
-
-            If Not String.IsNullOrWhiteSpace(name) Then
-                sql &= " AND T.Name LIKE @Name"
-                command.Parameters.AddWithValue("@Name", "%" & name.Trim() & "%")
-            End If
-            If Not String.IsNullOrWhiteSpace(isAvailable) Then
-                sql &= " AND T.IsAvailable = @IsAvailable"
-                Dim isAvailBool As Boolean = (isAvailable.ToLower() = "true")
-                command.Parameters.AddWithValue("@IsAvailable", If(isAvailBool, 1, 0))
-            End If
-            If Not String.IsNullOrWhiteSpace(storage) Then
-                sql &= " AND T.Storage LIKE @Storage"
-                command.Parameters.AddWithValue("@Storage", "%" & storage.Trim() & "%")
-            End If
-            Dim parsedCategoryId As Integer
-            If Not String.IsNullOrWhiteSpace(categoryId) AndAlso Integer.TryParse(categoryId, parsedCategoryId) Then
-                sql &= " AND T.CategoryId = @CategoryId"
-                command.Parameters.AddWithValue("@CategoryId", parsedCategoryId)
-            End If
-
-            command.CommandText = sql
-            Using reader = Await command.ExecuteReaderAsync()
-                While Await reader.ReadAsync()
-                    tools.Add(New ToolItem With {
-                        .Id = reader.GetInt32(0),
-                        .Name = reader.GetString(1),
-                        .Storage = reader.GetString(2),
-                        .IsAvailable = (reader.GetInt32(3) = 1),
-                        .CategoryId = reader.GetInt32(4),
-                        .CategoryName = reader.GetString(5)
-                    })
-                End While
-            End Using
-        End Using
-        Return tools
-    End Function
-
     ' カテゴリ一覧の取得
     Public Async Function GetCategoriesAsync() As Task(Of List(Of CategoryItem))
         Dim categories As New List(Of CategoryItem)()
@@ -268,4 +213,55 @@ Public Class ToolRepository
             End Using
         End Using
     End Function
+
+    ' 複数条件組み合わせ検索
+    Public Async Function SearchAsync(name As String, storage As String, categoryId As Integer?, isAvailable As Boolean?) As Task(Of List(Of ToolItem))
+        Dim tools As New List(Of ToolItem)()
+        Using connection As New SqliteConnection(_connectionString)
+            Await connection.OpenAsync()
+            Dim command = connection.CreateCommand()
+            Dim sql As String = "
+                SELECT
+                    T.Id,
+                    T.Name,
+                    T.Storage,
+                    T.IsAvailable,
+                    T.CategoryId,
+                    COALESCE(C.Name, '未分類') AS CategoryName FROM Tools T LEFT JOIN Categories C ON T.CategoryId = C.Id WHERE 1=1
+                "
+
+            If Not String.IsNullOrWhiteSpace(name) Then
+                sql &= " AND (T.Name LIKE @name)"
+            command.Parameters.AddWithValue("@name", "%" & name.Trim() & "%")
+            End If
+            If Not String.IsNullOrWhiteSpace(storage) Then
+                sql &= " AND (T.Storage LIKE @storage)"
+                command.Parameters.AddWithValue("@storage", "%" & storage.Trim() & "%")
+            End If
+            If categoryId.HasValue AndAlso categoryId.Value > 0 Then
+                sql &= " AND (T.CategoryId = @categoryId)"
+                command.Parameters.AddWithValue("@categoryId", categoryId.Value)
+            End If
+            If isAvailable.HasValue Then
+                sql &= " AND (T.IsAvailable = @isAvailable)"
+                command.Parameters.AddWithValue("@isAvailable", If(isAvailable.Value, 1, 0))
+            End If
+
+            command.CommandText = sql
+            Using reader = Await command.ExecuteReaderAsync()
+                While Await reader.ReadAsync()
+                    tools.Add(New ToolItem With {
+                        .Id = reader.GetInt32(0),
+                        .Name = reader.GetString(1),
+                        .Storage = reader.GetString(2),
+                        .IsAvailable = (reader.GetInt32(3) = 1),
+                        .CategoryId = reader.GetInt32(4),
+                        .CategoryName = reader.GetString(5)
+                    })
+                End While
+            End Using
+        End Using
+        Return tools
+    End Function
+
 End Class
