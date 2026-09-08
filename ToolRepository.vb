@@ -264,4 +264,38 @@ Public Class ToolRepository
         Return tools
     End Function
 
+    ' ステータス変更と履歴作成を行うトランザクション
+    Public Async Function ToggleStatusWithLogAsync(toolId As Integer, isAvailable As Boolean, userName As String) As Task(Of Boolean)
+        Using connection As New SqliteConnection(_connectionString)
+            Await connection.OpenAsync()
+            Dim transaction = Await connection.BeginTransactionAsync()
+            Try
+                Dim command = connection.CreateCommand()
+                command.Transaction = transaction
+                command.CommandText = "
+                    UPDATE Tools SET IsAvailable = @isAvailable WHERE Id = @id
+                "
+                command.Parameters.AddWithValue("@isAvailable", If(isAvailable, 1, 0))
+                command.Parameters.AddWithValue("@id", toolId)
+                Await command.ExecuteNonQueryAsync()
+
+                Dim logCommand = connection.CreateCommand()
+                logCommand.Transaction = transaction
+                logCommand.CommandText = "
+                    INSERT INTO Logs (ToolId, Action, Timestamp, UserName) VALUES (@toolId, @action, @timestamp, @userName)
+                "
+                logCommand.Parameters.AddWithValue("@toolId", toolId)
+                logCommand.Parameters.AddWithValue("@action", If(isAvailable, "返却", "貸出"))
+                logCommand.Parameters.AddWithValue("@timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                logCommand.Parameters.AddWithValue("@userName", userName)
+                Await logCommand.ExecuteNonQueryAsync()
+                Await transaction.CommitAsync()
+                Return True
+            Catch
+                transaction.RollbackAsync()
+                Throw
+            End try
+        End Using
+    End Function
+
 End Class

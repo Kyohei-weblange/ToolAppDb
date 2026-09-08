@@ -38,6 +38,12 @@ Public Class ToolLog
     Public Property UserName As String
 End Class
 
+Public Class ToggleStatusRequest
+    Public Property ToolId As Integer
+    Public Property IsAvailable As Boolean
+    Public Property UserName As String
+End Class
+
 ' --- メイン処理 ---
 Module Program
     Sub Main(args As String())
@@ -158,6 +164,13 @@ Module Program
             Else
                 Return Results.BadRequest("同名のカテゴリがすでに存在するか、登録に失敗しました。")
             End If
+        End Function)
+
+        ' ステータス変更用
+        app.MapPost("/api/tools/toggle-status", Async Function(req As ToggleStatusRequest) As Task(Of IResult)
+            Dim userName = If(String.IsNullOrWhiteSpace(req.UserName), "管理者", req.userName.Trim())
+            Await repository.ToggleStatusWithLogAsync(req.ToolId, req.IsAvailable, UserName)
+            Return Results.Ok()
         End Function)
 
         app.Run()

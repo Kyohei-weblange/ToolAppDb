@@ -434,9 +434,10 @@
       document.addEventListener("DOMContentLoaded", () => {
         fetchCategories();
         fetchTools();
-        fetchLogs(); // 履歴一覧の初回読み込みを追加
+        fetchLogs(); // 履歴一覧の初回読み込み
       });
 
+      // 1. カテゴリ一覧の取得・描画
       async function fetchCategories() {
         try {
           const response = await fetch("/api/categories");
@@ -483,6 +484,7 @@
         }
       }
 
+      // 2. カテゴリの追加
       async function addCategory() {
         const input = document.getElementById("newCategoryName");
         const name = input.value.trim();
@@ -510,6 +512,7 @@
         }
       }
 
+      // 3. カテゴリの削除
       async function deleteCategory(id, name) {
         if (
           !confirm(
@@ -534,6 +537,7 @@
         }
       }
 
+      // 4. 工具一覧の取得・描画
       async function fetchTools() {
         const name = document.getElementById("searchName")
           ? document.getElementById("searchName").value.trim()
@@ -572,24 +576,25 @@
               ? `<span class="status-badge status-available">利用可能</span>`
               : `<span class="status-badge status-rented">貸出中</span>`;
 
+            // ★修正ポイント：新しく作成した toggleToolStatus を呼び出すように変更
             const toggleBtn = isAvail
-              ? `<button class="btn-status btn-checkout" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.categoryId}, false)">貸出する</button>`
-              : `<button class="btn-status btn-return" onclick="toggleStatus(${tool.id}, '${tool.name}', '${tool.storage}', ${tool.categoryId}, true)">返却する</button>`;
+              ? `<button class="btn-status btn-checkout" onclick="toggleToolStatus(${tool.id}, ${isAvail})">貸出する</button>`
+              : `<button class="btn-status btn-return" onclick="toggleToolStatus(${tool.id}, ${isAvail})">返却する</button>`;
 
             const tr = document.createElement("tr");
             tr.innerHTML = `
-            <td>${tool.id}</td>
-            <td>${tool.name}</td>
-            <td>${tool.storage}</td>
-            <td>${tool.categoryName}</td>
-            <td>${statusBadge}</td>
-            <td>
-              <div class="action-cell">
-                ${toggleBtn}
-                <button class="btn-danger" onclick="deleteTool(${tool.id})">削除</button>
-              </div>
-            </td>
-          `;
+          <td>${tool.id}</td>
+          <td>${tool.name}</td>
+          <td>${tool.storage}</td>
+          <td>${tool.categoryName}</td>
+          <td>${statusBadge}</td>
+          <td>
+            <div class="action-cell">
+              ${toggleBtn}
+              <button class="btn-danger" onclick="deleteTool(${tool.id})">削除</button>
+            </div>
+          </td>
+        `;
             tbody.appendChild(tr);
           });
         } catch (error) {
@@ -597,7 +602,7 @@
         }
       }
 
-      /* 履歴一覧の取得・表示関数（追加） */
+      // 5. 履歴一覧の取得・表示
       async function fetchLogs() {
         try {
           const response = await fetch("/api/logs");
@@ -613,18 +618,15 @@
             const rawTimestamp = log.timestamp || log.Timestamp;
             const userName = log.userName || log.UserName || "未設定";
 
-            // 日時を読みやすい形式に整形 (YYYY/MM/DD HH:mm:ss)
             const dateObj = new Date(rawTimestamp);
             const formattedDate = isNaN(dateObj.getTime())
               ? rawTimestamp
               : dateObj.toLocaleString("ja-JP");
 
             let actionBadge = "";
-
             if (action === "返却") {
               actionBadge = `<span class="status-badge status-available">返却</span>`;
             } else if (action === "登録") {
-              // 必要に応じて CSS で .status-registered などを作成して割り当てることも可能です
               actionBadge = `<span class="status-badge status-available">登録</span>`;
             } else {
               actionBadge = `<span class="status-badge status-rented">貸出</span>`;
@@ -632,11 +634,11 @@
 
             const tr = document.createElement("tr");
             tr.innerHTML = `
-              <td>${toolName}</td>
-              <td>${userName}</td>
-              <td>${actionBadge}</td>
-              <td style="font-size:0.85em;">${formattedDate}</td>
-            `;
+          <td>${toolName}</td>
+          <td>${userName}</td>
+          <td>${actionBadge}</td>
+          <td style="font-size:0.85em;">${formattedDate}</td>
+        `;
             tbody.appendChild(tr);
           });
         } catch (error) {
@@ -644,38 +646,42 @@
         }
       }
 
-      async function toggleStatus(id, name, storage, categoryId, newStatus) {
-        // 利用者名の入力ダイアログを表示
-        const userName = prompt("利用者名を入力してください:");
-        if (!userName || !userName.trim()) {
-          alert("利用者名は必須です。操作をキャンセルしました。");
-          return; // 未入力やキャンセルの場合は処理を中断
-        }
+      // 6. トランザクション版 ステータス変更処理（POST /api/tools/toggle-status）
+      async function toggleToolStatus(toolId, currentStatus) {
+        const nextStatus = !currentStatus; // ステータス反転
+        const userName = prompt(
+          "操作者の名前を入力してください（空欄の場合は管理者）",
+          "",
+        );
+
+        // キャンセルボタンが押された場合は処理中断
+        if (userName === null) return;
+
         try {
-          const response = await fetch(`/api/tools/${id}`, {
-            method: "PUT",
+          const response = await fetch("/api/tools/toggle-status", {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              id: id,
-              name: name,
-              storage: storage,
-              categoryId: categoryId,
-              isAvailable: newStatus,
+              toolId: toolId,
+              isAvailable: nextStatus,
               userName: userName.trim(),
             }),
           });
 
           if (response.ok) {
+            // ★修正ポイント：正しい再描画関数を呼び出し
             await fetchTools();
-            await fetchLogs(); // ステータス変更成功時に履歴も自動更新（追加）
+            await fetchLogs();
           } else {
-            alert("ステータス変更に失敗しました。");
+            alert("ステータスの更新に失敗しました。");
           }
         } catch (error) {
-          console.error("ステータス変更エラー:", error);
+          console.error("エラー:", error);
+          alert("通信エラーが発生しました。");
         }
       }
 
+      // 7. 工具の追加
       async function addTool() {
         const name = document.getElementById("name").value.trim();
         const storage = document.getElementById("storage").value.trim();
@@ -689,7 +695,6 @@
           return;
         }
 
-        // ① 利用者名（登録者名）の入力ダイアログを表示
         const userName = prompt("登録者の名前を入力してください:");
         if (!userName || !userName.trim()) {
           alert("登録者名は必須です。登録をキャンセルしました。");
@@ -705,7 +710,7 @@
               storage,
               categoryId,
               isAvailable,
-              userName: userName.trim(), // ② 送信データに userName を追加
+              userName: userName.trim(),
             }),
           });
 
@@ -713,7 +718,7 @@
             document.getElementById("name").value = "";
             document.getElementById("storage").value = "";
             await fetchTools();
-            await fetchLogs(); // ③ 登録完了時に履歴一覧も更新
+            await fetchLogs();
           } else {
             alert("登録に失敗しました。");
           }
@@ -722,6 +727,7 @@
         }
       }
 
+      // 8. 工具の削除
       async function deleteTool(id) {
         if (!confirm("本当に削除しますか？")) return;
 
