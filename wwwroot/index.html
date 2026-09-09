@@ -411,14 +411,35 @@
 
           <div class="table-container">
             <table>
+              <div class="bulk-action-bar" style="margin-bottom: 10px">
+                <button
+                  class="btn btn-warning"
+                  onclick="bulkToggleStatus(false)"
+                >
+                  選択した工具を一括貸出
+                </button>
+                <button
+                  class="btn btn-success"
+                  onclick="bulkToggleStatus(true)"
+                >
+                  選択した工具を一括返却
+                </button>
+              </div>
               <thead>
                 <tr>
-                  <th style="width: 50px">ID</th>
+                  <th>
+                    <input
+                      type="checkbox"
+                      id="selectAllTools"
+                      onclick="toggleSelectAll(this)"
+                    />
+                  </th>
+                  <th>ID</th>
                   <th>工具名</th>
                   <th>保管場所</th>
                   <th>カテゴリ</th>
-                  <th style="width: 100px">状態</th>
-                  <th style="width: 170px">操作</th>
+                  <th>ステータス</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody id="toolTableBody">
@@ -571,30 +592,29 @@
               tool.isAvailable !== undefined
                 ? tool.isAvailable
                 : tool.IsAvailable;
-
             const statusBadge = isAvail
               ? `<span class="status-badge status-available">利用可能</span>`
               : `<span class="status-badge status-rented">貸出中</span>`;
 
-            // ★修正ポイント：新しく作成した toggleToolStatus を呼び出すように変更
             const toggleBtn = isAvail
               ? `<button class="btn-status btn-checkout" onclick="toggleToolStatus(${tool.id}, ${isAvail})">貸出する</button>`
               : `<button class="btn-status btn-return" onclick="toggleToolStatus(${tool.id}, ${isAvail})">返却する</button>`;
 
             const tr = document.createElement("tr");
             tr.innerHTML = `
-          <td>${tool.id}</td>
-          <td>${tool.name}</td>
-          <td>${tool.storage}</td>
-          <td>${tool.categoryName}</td>
-          <td>${statusBadge}</td>
-          <td>
-            <div class="action-cell">
-              ${toggleBtn}
-              <button class="btn-danger" onclick="deleteTool(${tool.id})">削除</button>
-            </div>
-          </td>
-        `;
+              <td><input type="checkbox" class="tool-checkbox" value="${tool.id}"></td>
+              <td>${tool.id}</td>
+              <td>${tool.name}</td>
+              <td>${tool.storage}</td>
+              <td>${tool.categoryName}</td>
+              <td>${statusBadge}</td>
+              <td>
+                <div class="action-cell">
+                  ${toggleBtn}
+                  <button class="btn-danger" onclick="deleteTool(${tool.id})">削除</button>
+                </div>
+              </td>
+            `;
             tbody.appendChild(tr);
           });
         } catch (error) {
@@ -644,6 +664,12 @@
         } catch (error) {
           console.error("履歴一覧取得エラー:", error);
         }
+      }
+
+      //  全選択・全解除の制御関数
+      function toggleSelectAll(masterCheckbox) {
+        const checkboxes = document.querySelectorAll(".tool-checkbox");
+        checkboxes.forEach((cb) => (cb.checked = masterCheckbox.checked));
       }
 
       // 6. トランザクション版 ステータス変更処理（POST /api/tools/toggle-status）
@@ -742,6 +768,58 @@
           }
         } catch (error) {
           console.error("工具削除エラー:", error);
+        }
+      }
+
+      // 一括ステータス変更API呼び出し関数
+      async function bulkToggleStatus(isAvailable) {
+        // チェックされている工具IDを配列で収集
+        const selectedCheckboxes = document.querySelectorAll(
+          ".tool-checkbox:checked",
+        );
+        const toolIds = Array.from(selectedCheckboxes).map((cb) =>
+          parseInt(cb.value),
+        );
+
+        if (toolIds.length === 0) {
+          alert("操作対象の工具を1つ以上選択してください。");
+          return;
+        }
+
+        const actionName = isAvailable ? "一括返却" : "一括貸出";
+        const userName = prompt(
+          `${actionName} を行います。操作者の名前を入力してください（空欄の場合は管理者）`,
+          "",
+        );
+        if (userName === null) return; // キャンセル時
+
+        try {
+          const response = await fetch("/api/tools/bulk-toggle-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              toolIds: toolIds,
+              isAvailable: isAvailable,
+              userName: userName.trim(),
+            }),
+          });
+
+          if (response.ok) {
+            alert(`${toolIds.length} 件の工具を${actionName}しました。`);
+            // 全選択チェックボックスを解除
+            const masterCb = document.getElementById("selectAllTools");
+            if (masterCb) masterCb.checked = false;
+
+            // 画面更新
+            await fetchTools();
+            await fetchLogs();
+          } else {
+            const errText = await response.text();
+            alert("一括更新に失敗しました: " + errText);
+          }
+        } catch (error) {
+          console.error("エラー:", error);
+          alert("通信エラーが発生しました。");
         }
       }
     </script>

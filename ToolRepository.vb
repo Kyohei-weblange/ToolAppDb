@@ -282,7 +282,7 @@ Public Class ToolRepository
                 Dim logCommand = connection.CreateCommand()
                 logCommand.Transaction = transaction
                 logCommand.CommandText = "
-                    INSERT INTO Logs (ToolId, Action, Timestamp, UserName) VALUES (@toolId, @action, @timestamp, @userName)
+                    INSERT INTO ToolLogs (ToolId, Action, Timestamp, UserName) VALUES (@toolId, @action, @timestamp, @userName)
                 "
                 logCommand.Parameters.AddWithValue("@toolId", toolId)
                 logCommand.Parameters.AddWithValue("@action", If(isAvailable, "返却", "貸出"))
@@ -308,16 +308,20 @@ Public Class ToolRepository
                     Dim command = connection.CreateCommand()
                     command.Transaction = transaction
                     command.CommandText = "
-                        UPDATE Tools SET IsAvailable = @isAvailable WHERE Id = @id
+                        UPDATE Tools SET IsAvailable = @isAvailable WHERE Id = @id AND IsAvailable = @currentStatus
                     "
                     command.Parameters.AddWithValue("@isAvailable", If(isAvailable, 1, 0))
+                    command.Parameters.AddWithValue("@currentStatus", If(isAvailable, 0, 1))
                     command.Parameters.AddWithValue("@id", toolId)
-                    Await command.ExecuteNonQueryAsync()
+                    Dim rowsAffected = Await command.ExecuteNonQueryAsync()
+                    If rowsAffected = 0 Then
+                        Throw New Exception("すでに選択したステータスの工具が含まれています。")
+                    End If
 
                     Dim logCommand = connection.CreateCommand()
                     logCommand.Transaction = transaction
                     logCommand.CommandText = "
-                        INSERT INTO Logs (ToolId, Action, Timestamp, UserName) VALUES (@toolId, @action, @timestamp, @userName)
+                        INSERT INTO ToolLogs (ToolId, Action, Timestamp, UserName) VALUES (@toolId, @action, @timestamp, @userName)
                     "
                     logCommand.Parameters.AddWithValue("@toolId", toolId)
                     logCommand.Parameters.AddWithValue("@action", If(isAvailable, "返却", "貸出"))
@@ -327,7 +331,7 @@ Public Class ToolRepository
                 Next
                 Await transaction.CommitAsync()
                 Return True
-            Catch
+            Catch ex As Exception
                 transaction.Rollback()
                 Throw
             End Try

@@ -185,8 +185,12 @@ Module Program
                 Return Results.BadRequest("対象の工具が選択されていません。")
             End If
             Dim userName = If(String.IsNullOrWhiteSpace(req.UserName), "管理者", req.userName.Trim())
-            Await repository.BulkToggleStatusWithLogAsync(req.ToolIds, req.IsAvailable, UserName)
-            Return Results.Ok()
+            Try
+                Await repository.BulkToggleStatusWithLogAsync(req.ToolIds, req.IsAvailable, UserName)
+                Return Results.Ok()
+            Catch ex As Exception
+                Return Results.BadRequest(ex.Message)
+            End Try
         End Function)
 
         app.Run()
