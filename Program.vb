@@ -44,6 +44,12 @@ Public Class ToggleStatusRequest
     Public Property UserName As String
 End Class
 
+Public Class BulkToggleStatusRequest
+    Public Property ToolIds As List(Of Integer)
+    Public Property IsAvailable As Boolean
+    Public Property UserName As String
+End Class
+
 ' --- メイン処理 ---
 Module Program
     Sub Main(args As String())
@@ -170,6 +176,16 @@ Module Program
         app.MapPost("/api/tools/toggle-status", Async Function(req As ToggleStatusRequest) As Task(Of IResult)
             Dim userName = If(String.IsNullOrWhiteSpace(req.UserName), "管理者", req.userName.Trim())
             Await repository.ToggleStatusWithLogAsync(req.ToolId, req.IsAvailable, UserName)
+            Return Results.Ok()
+        End Function)
+
+        ' 複数工具のステータス更新
+        app.MapPost("/api/tools/bulk-toggle-status", Async Function(req As BulkToggleStatusRequest) As Task(Of IResult)
+            If req.ToolIds Is Nothing OrElse req.ToolIds.Count = 0 Then
+                Return Results.BadRequest("対象の工具が選択されていません。")
+            End If
+            Dim userName = If(String.IsNullOrWhiteSpace(req.UserName), "管理者", req.userName.Trim())
+            Await repository.BulkToggleStatusWithLogAsync(req.ToolIds, req.IsAvailable, UserName)
             Return Results.Ok()
         End Function)
 

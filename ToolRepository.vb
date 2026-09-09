@@ -298,4 +298,40 @@ Public Class ToolRepository
         End Using
     End Function
 
+    ' 選択した複数の工具を一括操作
+    Public Async Function BulkToggleStatusWithLogAsync(toolIds As List(Of Integer), isAvailable As Boolean, userName As String) As Task(Of Boolean)
+        Using connection As New SqliteConnection(_connectionString)
+            Await connection.OpenAsync()
+            Dim transaction = Await connection.BeginTransactionAsync()
+            Try
+                For Each toolId In toolIds
+                    Dim command = connection.CreateCommand()
+                    command.Transaction = transaction
+                    command.CommandText = "
+                        UPDATE Tools SET IsAvailable = @isAvailable WHERE Id = @id
+                    "
+                    command.Parameters.AddWithValue("@isAvailable", If(isAvailable, 1, 0))
+                    command.Parameters.AddWithValue("@id", toolId)
+                    Await command.ExecuteNonQueryAsync()
+
+                    Dim logCommand = connection.CreateCommand()
+                    logCommand.Transaction = transaction
+                    logCommand.CommandText = "
+                        INSERT INTO Logs (ToolId, Action, Timestamp, UserName) VALUES (@toolId, @action, @timestamp, @userName)
+                    "
+                    logCommand.Parameters.AddWithValue("@toolId", toolId)
+                    logCommand.Parameters.AddWithValue("@action", If(isAvailable, "返却", "貸出"))
+                    logCommand.Parameters.AddWithValue("@timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                    logCommand.Parameters.AddWithValue("@userName", userName)
+                    Await logCommand.ExecuteNonQueryAsync()
+                Next
+                Await transaction.CommitAsync()
+                Return True
+            Catch
+                transaction.Rollback()
+                Throw
+            End Try
+        End Using
+    End Function
+
 End Class
