@@ -288,6 +288,8 @@
       <h1>工具管理システム</h1>
     </div>
 
+    <!-- 期限切れ警告アラートエリア -->
+    <div id="overdueAlertContainer" class="mb-3"></div>
     <div class="container">
       <!-- 左側カラム：登録・管理 -->
       <div class="left-column">
@@ -672,6 +674,21 @@
         checkboxes.forEach((cb) => (cb.checked = masterCheckbox.checked));
       }
 
+      // 操作者名を取得・保存する補助関数
+      function getOrPromptUserName(actionName) {
+        const savedName = localStorage.getItem("lastUserName") || "管理者";
+        const userName = prompt(
+          `${actionName} を行います。操作者の名前を入力してください:`,
+          savedName,
+        );
+
+        if (userName === null) return null; // キャンセル時
+
+        const finalName = userName.trim() || "管理者";
+        localStorage.setItem("lastUserName", finalName); // 次回用に保存
+        return finalName;
+      }
+
       // 6. トランザクション版 ステータス変更処理（POST /api/tools/toggle-status）
       async function toggleToolStatus(toolId, currentStatus) {
         const nextStatus = !currentStatus; // ステータス反転
@@ -822,6 +839,42 @@
           alert("通信エラーが発生しました。");
         }
       }
+
+      // 返却期限切れ工具のチェックとアラート表示
+      async function checkOverdueTools() {
+        try {
+          const response = await fetch("/api/tools/overdue");
+          if (!response.ok) return;
+
+          const overdueTools = await response.json();
+          const container = document.getElementById("overdueAlertContainer");
+          if (!container) return;
+
+          if (overdueTools.length > 0) {
+            const toolNames = overdueTools
+              .map((t) => `${t.name} (期限: ${t.dueDate})`)
+              .join("、");
+            container.innerHTML = `
+                <div class="alert alert-danger d-flex align-items-center role="alert">
+                    <div>
+                        <strong>⚠️ 返却期限切れの工具が ${overdueTools.length} 件あります！</strong><br>
+                        対象: ${toolNames}
+                    </div>
+                </div>
+            `;
+          } else {
+            container.innerHTML = ""; // 該当なしの場合はクリア
+          }
+        } catch (error) {
+          console.error("期限切れチェックエラー:", error);
+        }
+      }
+
+      // 画面初期化時（DOMContentLoaded等）の処理末尾で呼び出す
+      document.addEventListener("DOMContentLoaded", () => {
+        // 既存の初期化処理...
+        checkOverdueTools();
+      });
     </script>
   </body>
 </html>

@@ -18,7 +18,8 @@ Public Class ToolRepository
                     Name TEXT NOT NULL,
                     Storage TEXT NOT NULL,
                     IsAvailable INTEGER NOT NULL,
-                    CategoryId INTEGER NOT NULL DEFAULT 1
+                    CategoryId INTEGER NOT NULL DEFAULT 1,
+                    DueDate TEXT
                 );
                 CREATE TABLE IF NOT EXISTS Categories (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,6 +36,9 @@ Public Class ToolRepository
                     Timestamp DATETIME NOT NULL,
                     UserName TEXT NOT NULL
                 );
+                -- 一度既存のToolsをクリアして初期データを投入する場合の例
+INSERT INTO Tools (Name, Storage, IsAvailable, CategoryId, DueDate)
+VALUES ('テスト用ドライバー', 'A-1', 0, 1, '2026-09-01');
                 "
             command.ExecuteNonQuery()
         End Using
@@ -336,6 +340,42 @@ Public Class ToolRepository
                 Throw
             End Try
         End Using
+    End Function
+
+    ' 返却期限付きデータ一覧取得
+    Public Async Function GetOverdueToolsAsync() As Task(Of List(Of ToolItem))
+        Dim Tools As New List(Of ToolItem)()
+        Using connection As New SqliteConnection(_connectionString)
+            Await connection.OpenAsync()
+            Dim command = connection.CreateCommand()
+            Dim sql As String = "
+                SELECT
+                    T.Id,
+                    T.Name,
+                    T.Storage,
+                    T.IsAvailable,
+                    T.CategoryId,
+                    T.DueDate,
+                    COALESCE(C.Name, '未分類') AS CategoryName FROM Tools T LEFT JOIN Categories C ON T.CategoryId = C.Id WHERE T.IsAvailable = 0 AND T.DueDate < @today
+                "
+            command.Parameters.AddWithValue("@today", DateTime.Now.ToString("yyyy-MM-dd"))
+
+            command.CommandText = sql
+            Using reader = Await command.ExecuteReaderAsync()
+                While Await reader.ReadAsync()
+                    tools.Add(New ToolItem With {
+                        .Id = reader.GetInt32(0),
+                        .Name = reader.GetString(1),
+                        .Storage = reader.GetString(2),
+                        .IsAvailable = (reader.GetInt32(3) = 1),
+                        .CategoryId = reader.GetInt32(4),
+                        .DueDate = If(reader.IsDBNull(5), "", reader.GetString(5)),
+                        .CategoryName = reader.GetString(6)
+                    })
+                End While
+            End Using
+        End Using
+        Return tools
     End Function
 
 End Class

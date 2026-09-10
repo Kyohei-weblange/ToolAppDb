@@ -16,6 +16,7 @@ Public Class ToolItem
     Public Property CategoryId As Integer
     Public Property CategoryName As String
     Public Property UserName As String
+    Public Property DueDate As String
 
     Public Function Validate() As List(Of String)
         Dim errors As New List(Of String)()
@@ -188,6 +189,16 @@ Module Program
             Try
                 Await repository.BulkToggleStatusWithLogAsync(req.ToolIds, req.IsAvailable, UserName)
                 Return Results.Ok()
+            Catch ex As Exception
+                Return Results.BadRequest(ex.Message)
+            End Try
+        End Function)
+
+        ' 返却期限付きデータ一覧（同期形式に書き換え）
+        app.MapGet("/api/tools/overdue", Function()
+            Try
+                Dim tools = repository.GetOverdueToolsAsync().GetAwaiter().GetResult()
+                Return Results.Ok(tools)
             Catch ex As Exception
                 Return Results.BadRequest(ex.Message)
             End Try
