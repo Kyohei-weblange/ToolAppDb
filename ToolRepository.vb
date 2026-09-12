@@ -36,9 +36,6 @@ Public Class ToolRepository
                     Timestamp DATETIME NOT NULL,
                     UserName TEXT NOT NULL
                 );
-                -- 一度既存のToolsをクリアして初期データを投入する場合の例
-INSERT INTO Tools (Name, Storage, IsAvailable, CategoryId, DueDate)
-VALUES ('テスト用ドライバー', 'A-1', 0, 1, '2026-09-01');
                 "
             command.ExecuteNonQuery()
         End Using
@@ -269,7 +266,7 @@ VALUES ('テスト用ドライバー', 'A-1', 0, 1, '2026-09-01');
     End Function
 
     ' ステータス変更と履歴作成を行うトランザクション
-    Public Async Function ToggleStatusWithLogAsync(toolId As Integer, isAvailable As Boolean, userName As String) As Task(Of Boolean)
+    Public Async Function ToggleStatusWithLogAsync(toolId As Integer, isAvailable As Boolean, userName As String, dueDate As String) As Task(Of Boolean)
         Using connection As New SqliteConnection(_connectionString)
             Await connection.OpenAsync()
             Dim transaction = Await connection.BeginTransactionAsync()
@@ -277,9 +274,11 @@ VALUES ('テスト用ドライバー', 'A-1', 0, 1, '2026-09-01');
                 Dim command = connection.CreateCommand()
                 command.Transaction = transaction
                 command.CommandText = "
-                    UPDATE Tools SET IsAvailable = @isAvailable WHERE Id = @id
+                    UPDATE Tools SET IsAvailable = @isAvailable, DueDate = @dueDate
+                    WHERE Id = @id
                 "
                 command.Parameters.AddWithValue("@isAvailable", If(isAvailable, 1, 0))
+                command.Parameters.AddWithValue("@dueDate", If(isAvailable, CObj(DBNull.Value), dueDate))
                 command.Parameters.AddWithValue("@id", toolId)
                 Await command.ExecuteNonQueryAsync()
 

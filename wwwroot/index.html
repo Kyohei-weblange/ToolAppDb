@@ -700,6 +700,20 @@
         // キャンセルボタンが押された場合は処理中断
         if (userName === null) return;
 
+        // 貸出処理（nextStatus = false）の場合のみ返却予定日を入力させる
+        let dueDate = null;
+        if (!nextStatus) {
+          // 7日後の日付を初期値として設定
+          const defaultDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0];
+          dueDate = prompt(
+            "返却予定日を入力してください (YYYY-MM-DD):",
+            defaultDate,
+          );
+          if (!dueDate) return; // 日付入力がキャンセルまたは空の場合は中断
+        }
+
         try {
           const response = await fetch("/api/tools/toggle-status", {
             method: "POST",
@@ -708,13 +722,16 @@
               toolId: toolId,
               isAvailable: nextStatus,
               userName: userName.trim(),
+              dueDate: dueDate,
             }),
           });
 
           if (response.ok) {
-            // ★修正ポイント：正しい再描画関数を呼び出し
             await fetchTools();
             await fetchLogs();
+            if (typeof checkOverdueTools === "function") {
+              await checkOverdueTools();
+            }
           } else {
             alert("ステータスの更新に失敗しました。");
           }

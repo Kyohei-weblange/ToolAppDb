@@ -43,6 +43,7 @@ Public Class ToggleStatusRequest
     Public Property ToolId As Integer
     Public Property IsAvailable As Boolean
     Public Property UserName As String
+    Public Property DueDate As String
 End Class
 
 Public Class BulkToggleStatusRequest
@@ -176,7 +177,7 @@ Module Program
         ' ステータス変更用
         app.MapPost("/api/tools/toggle-status", Async Function(req As ToggleStatusRequest) As Task(Of IResult)
             Dim userName = If(String.IsNullOrWhiteSpace(req.UserName), "管理者", req.userName.Trim())
-            Await repository.ToggleStatusWithLogAsync(req.ToolId, req.IsAvailable, UserName)
+            Await repository.ToggleStatusWithLogAsync(req.ToolId, req.IsAvailable, UserName, req.DueDate)
             Return Results.Ok()
         End Function)
 
