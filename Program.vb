@@ -50,6 +50,7 @@ Public Class BulkToggleStatusRequest
     Public Property ToolIds As List(Of Integer)
     Public Property IsAvailable As Boolean
     Public Property UserName As String
+    Public Property DueDate As String
 End Class
 
 ' --- メイン処理 ---
@@ -188,7 +189,7 @@ Module Program
             End If
             Dim userName = If(String.IsNullOrWhiteSpace(req.UserName), "管理者", req.userName.Trim())
             Try
-                Await repository.BulkToggleStatusWithLogAsync(req.ToolIds, req.IsAvailable, UserName)
+                Await repository.BulkToggleStatusWithLogAsync(req.ToolIds, req.IsAvailable, UserName, req.DueDate)
                 Return Results.Ok()
             Catch ex As Exception
                 Return Results.BadRequest(ex.Message)

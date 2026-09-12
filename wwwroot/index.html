@@ -805,9 +805,8 @@
         }
       }
 
-      // 一括ステータス変更API呼び出し関数
+      // 複数工具の一括ステータス変更処理
       async function bulkToggleStatus(isAvailable) {
-        // チェックされている工具IDを配列で収集
         const selectedCheckboxes = document.querySelectorAll(
           ".tool-checkbox:checked",
         );
@@ -816,16 +815,29 @@
         );
 
         if (toolIds.length === 0) {
-          alert("操作対象の工具を1つ以上選択してください。");
+          alert("対象の工具を1つ以上選択してください。");
           return;
         }
 
         const actionName = isAvailable ? "一括返却" : "一括貸出";
         const userName = prompt(
-          `${actionName} を行います。操作者の名前を入力してください（空欄の場合は管理者）`,
+          `選択した ${toolIds.length} 件の工具を【${actionName}】します。\n操作者の名前を入力してください:`,
           "",
         );
-        if (userName === null) return; // キャンセル時
+        if (userName === null) return;
+
+        let dueDate = null;
+        if (!isAvailable) {
+          // 貸出処理（isAvailable = false）の場合のみ期限入力
+          const defaultDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0];
+          dueDate = prompt(
+            "返却予定日を入力してください (YYYY-MM-DD):",
+            defaultDate,
+          );
+          if (!dueDate) return;
+        }
 
         try {
           const response = await fetch("/api/tools/bulk-toggle-status", {
@@ -835,18 +847,20 @@
               toolIds: toolIds,
               isAvailable: isAvailable,
               userName: userName.trim(),
+              dueDate: dueDate,
             }),
           });
 
           if (response.ok) {
             alert(`${toolIds.length} 件の工具を${actionName}しました。`);
-            // 全選択チェックボックスを解除
             const masterCb = document.getElementById("selectAllTools");
             if (masterCb) masterCb.checked = false;
 
-            // 画面更新
             await fetchTools();
             await fetchLogs();
+            if (typeof checkOverdueTools === "function") {
+              await checkOverdueTools();
+            }
           } else {
             const errText = await response.text();
             alert("一括更新に失敗しました: " + errText);

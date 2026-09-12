@@ -302,7 +302,7 @@ Public Class ToolRepository
     End Function
 
     ' 選択した複数の工具を一括操作
-    Public Async Function BulkToggleStatusWithLogAsync(toolIds As List(Of Integer), isAvailable As Boolean, userName As String) As Task(Of Boolean)
+    Public Async Function BulkToggleStatusWithLogAsync(toolIds As List(Of Integer), isAvailable As Boolean, userName As String, dueDate As String) As Task(Of Boolean)
         Using connection As New SqliteConnection(_connectionString)
             Await connection.OpenAsync()
             Dim transaction = Await connection.BeginTransactionAsync()
@@ -311,10 +311,11 @@ Public Class ToolRepository
                     Dim command = connection.CreateCommand()
                     command.Transaction = transaction
                     command.CommandText = "
-                        UPDATE Tools SET IsAvailable = @isAvailable WHERE Id = @id AND IsAvailable = @currentStatus
+                        UPDATE Tools SET IsAvailable = @isAvailable, DueDate = @dueDate WHERE Id = @id AND IsAvailable = @currentStatus
                     "
                     command.Parameters.AddWithValue("@isAvailable", If(isAvailable, 1, 0))
                     command.Parameters.AddWithValue("@currentStatus", If(isAvailable, 0, 1))
+                    command.Parameters.AddWithValue("@dueDate", If(isAvailable, CObj(DBNull.Value), dueDate))
                     command.Parameters.AddWithValue("@id", toolId)
                     Dim rowsAffected = Await command.ExecuteNonQueryAsync()
                     If rowsAffected = 0 Then
