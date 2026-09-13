@@ -36,6 +36,6 @@
 git clone [https://github.com/Kyohei-weblange/ToolAppDb.git]
 cd ToolAddDb
 dotnet run
+```
 
-##
 起動後、ブラウザで http://localhost:5000（または表示されたローカルポート）にアクセスしてください。
