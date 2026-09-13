@@ -228,6 +228,7 @@ Public Class ToolRepository
                     T.Storage,
                     T.IsAvailable,
                     T.CategoryId,
+                    T.DueDate,
                     COALESCE(C.Name, '未分類') AS CategoryName FROM Tools T LEFT JOIN Categories C ON T.CategoryId = C.Id WHERE 1=1
                 "
 
@@ -257,7 +258,8 @@ Public Class ToolRepository
                         .Storage = reader.GetString(2),
                         .IsAvailable = (reader.GetInt32(3) = 1),
                         .CategoryId = reader.GetInt32(4),
-                        .CategoryName = reader.GetString(5)
+                        .CategoryName = reader.GetString(5),
+                        .DueDate = If(reader.IsDBNull(6), Nothing, reader.GetString(6))
                     })
                 End While
             End Using
